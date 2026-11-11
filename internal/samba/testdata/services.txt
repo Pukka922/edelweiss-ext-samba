@@ -1,0 +1,261 @@
+=== init-depend ===
+--- samba
+depend() {
+	need net
+	after firewall
+}
+--- dbus
+depend() {
+	need localmount
+	after bootmisc
+}
+--- avahi-daemon
+depend() {
+	before netmount nfsmount
+	use net
+	need dbus hostname
+}
+--- wsdd
+depend() {
+	need net
+	need samba
+}
+--- crond
+depend() {
+	need localmount
+	need logger
+}
+--- sshd
+depend() {
+	use logger dns
+	after entropy
+
+	if [ "${rc_need+set}" = "set" ] ; then
+		: # Do nothing, the user has explicitly set rc_need
+	else
+		# shellcheck disable=SC2155
+		local x addrs="$(print_listen_addresses)"
+		if [ -n "$addrs" ] ; then
+			need net
+			ewarn "You are binding an interface in ListenAddress statement in your sshd_config!"
+			ewarn "You must add rc_need=\"net.FOO\" to your /etc/conf.d/sshd"
+			ewarn "where FOO is the interface(s) providing the following address(es):"
+			for x in $addrs; do
+				ewarn "  ${x%:*}"
+			done
+		fi
+	fi
+}
+--- syslog
+depend() {
+	need clock hostname localmount
+	provide logger
+}
+--- /etc/conf.d/wsdd
+# /etc/conf.d/wsdd
+
+# Override the default user/group under which wsdd runs.
+# Must follow the user[:group] notation.
+#WSDD_USER="wsdd:wsdd"
+
+# Specify alternative log file location.
+#WSDD_LOG_FILE="/var/log/wsdd.log"
+
+# Disable automatic detection of the workgroup from samba configuration.
+#WSDD_WORKGROUP="MYGROUP"
+
+# Additional options for the daemon, e.g. to listen on interface eth0 only.
+# Refer to wsdd(1) for details.
+#WSDD_OPTS="-i eth0"
+--- /etc/rc.conf (lines that are no comments)
+rc_tty_number=12
+respawn_delay=2
+respawn_max=5
+respawn_period=1800
+=== start-samba ===
+addgroup -S edelweiss-samba: exit status: 0
+adduser myUser: exit status: 0
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+ * Starting nmbd ... [ ok ]
+smbd listens on 127.0.0.1:445: true, 100ms after the start
+=== start-wsdd ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Starting wsdd daemon ... [ ok ]
+=== start-avahi-daemon ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.dbus': Read-only file system
+ * /run/dbus: creating directory
+ * /run/dbus: correcting owner
+ * Starting System Message Bus ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.avahi-daemon': Read-only file system
+ * Starting avahi-daemon ... [ ok ]
+=== start-dbus ===
+exit status: 0
+ * WARNING: dbus has already been started
+=== services-status ===
+samba:  * status: started
+dbus:  * status: started
+avahi-daemon:  * status: started
+wsdd:  * status: started
+syslog:  * status: started
+  169 root     /sbin/syslogd -t -n
+  281 root     /usr/sbin/smbd -D
+  287 root     {smbd-notifyd} /usr/sbin/smbd -D
+  288 root     {smbd-cleanupd} /usr/sbin/smbd -D
+  289 root     /usr/sbin/nmbd -D
+  323 wsdd     python3 /usr/bin/wsdd -w WORKGROUP
+  352 messageb /usr/bin/dbus-daemon --system --nofork --nopidfile --syslog-only
+  378 avahi    avahi-daemon: running [9be772bcc10b.local]
+  379 avahi    avahi-daemon: chroot helper
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 172.17.0.2:5357         0.0.0.0:*               LISTEN      -
+tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      281/smbd
+tcp        0      0 :::445                  :::*                    LISTEN      281/smbd
+udp        0      0 172.17.255.255:137      0.0.0.0:*                           289/nmbd
+udp        0      0 172.17.0.2:137          0.0.0.0:*                           289/nmbd
+udp        0      0 0.0.0.0:137             0.0.0.0:*                           289/nmbd
+udp        0      0 172.17.255.255:138      0.0.0.0:*                           289/nmbd
+udp        0      0 172.17.0.2:138          0.0.0.0:*                           289/nmbd
+udp        0      0 0.0.0.0:138             0.0.0.0:*                           289/nmbd
+udp        0      0 172.17.0.2:3702         0.0.0.0:*                           -
+udp        0      0 239.255.255.250:3702    0.0.0.0:*                           -
+udp        0      0 172.17.0.2:45121        0.0.0.0:*                           -
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           -
+udp        0      0 :::5353                 :::*                                -
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Found user 'avahi' (UID 86) and group 'avahi' (GID 86).
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Successfully dropped root privileges.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: avahi-daemon 0.9-rc4 starting up.
+Nov  4 11:10:49 9be772bcc10b daemon.warn avahi-daemon[378]: WARNING: No NSS support for mDNS detected, consider installing nss-mdns!
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Successfully called chroot().
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Successfully dropped remaining capabilities.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Loading service file /services/sftp-ssh.service.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Loading service file /services/ssh.service.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Joining mDNS multicast group on interface eth0.IPv4 with address 172.17.0.2.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: New relevant interface eth0.IPv4 for mDNS.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Joining mDNS multicast group on interface lo.IPv6 with address ::1.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: New relevant interface lo.IPv6 for mDNS.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Joining mDNS multicast group on interface lo.IPv4 with address 127.0.0.1.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: New relevant interface lo.IPv4 for mDNS.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Network interface enumeration completed.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Registering new address record for 172.17.0.2 on eth0.IPv4.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Registering new address record for ::1 on lo.*.
+Nov  4 11:10:49 9be772bcc10b daemon.info avahi-daemon[378]: Registering new address record for 127.0.0.1 on lo.IPv4.
+Nov  4 11:10:49 9be772bcc10b daemon.warn dbus[386]: WARNING: dbus has already been started
+Nov  4 11:10:50 9be772bcc10b daemon.info avahi-daemon[378]: Server startup complete. Host name is 9be772bcc10b.local. Local service cookie is 178821063.
+Nov  4 11:10:51 9be772bcc10b daemon.info avahi-daemon[378]: Service "9be772bcc10b" (/services/ssh.service) successfully established.
+Nov  4 11:10:51 9be772bcc10b daemon.info avahi-daemon[378]: Service "9be772bcc10b" (/services/sftp-ssh.service) successfully established.
+=== apk-add-avahi-tools ===
+exit status: 0
+=== avahi-browse-samba-first ===
+=;eth0;IPv4;9be772bcc10b;SSH Remote Terminal;local;9be772bcc10b.local;172.17.0.2;22;
+=;lo;IPv4;9be772bcc10b;SSH Remote Terminal;local;9be772bcc10b.local;127.0.0.1;22;
+=;eth0;IPv4;9be772bcc10b;SFTP File Transfer;local;9be772bcc10b.local;172.17.0.2;22;
+=;lo;IPv4;9be772bcc10b;SFTP File Transfer;local;9be772bcc10b.local;127.0.0.1;22;
+=== samba-restart ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+ * Stopping nmbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+ * Starting nmbd ... [ ok ]
+samba:  * status: started
+dbus:  * status: started
+avahi-daemon:  * status: started
+wsdd:  * status: started
+syslog:  * status: started
+  169 root     /sbin/syslogd -t -n
+  352 messageb /usr/bin/dbus-daemon --system --nofork --nopidfile --syslog-only
+  378 avahi    avahi-daemon: running [9be772bcc10b.local]
+  379 avahi    avahi-daemon: chroot helper
+  569 root     /usr/sbin/smbd -D
+  575 root     {smbd-notifyd} /usr/sbin/smbd -D
+  576 root     {smbd-cleanupd} /usr/sbin/smbd -D
+  577 root     /usr/sbin/nmbd -D
+  608 wsdd     python3 /usr/bin/wsdd -w WORKGROUP
+=;eth0;IPv4;CAPTURE;Device Info;local;9be772bcc10b.local;172.17.0.2;0;"model=MacSamba"
+=;lo;IPv4;CAPTURE;Device Info;local;9be772bcc10b.local;127.0.0.1;0;"model=MacSamba"
+=;eth0;IPv4;CAPTURE;Microsoft Windows Network;local;9be772bcc10b.local;172.17.0.2;445;
+=;lo;IPv4;CAPTURE;Microsoft Windows Network;local;9be772bcc10b.local;127.0.0.1;445;
+=;eth0;IPv4;9be772bcc10b;SSH Remote Terminal;local;9be772bcc10b.local;172.17.0.2;22;
+=;lo;IPv4;9be772bcc10b;SSH Remote Terminal;local;9be772bcc10b.local;127.0.0.1;22;
+=;eth0;IPv4;9be772bcc10b;SFTP File Transfer;local;9be772bcc10b.local;172.17.0.2;22;
+=;lo;IPv4;9be772bcc10b;SFTP File Transfer;local;9be772bcc10b.local;127.0.0.1;22;
+=== wsdd-after-samba-restart ===
+exit status: 0
+ * WARNING: wsdd has already been started
+samba:  * status: started
+dbus:  * status: started
+avahi-daemon:  * status: started
+wsdd:  * status: started
+syslog:  * status: started
+  169 root     /sbin/syslogd -t -n
+  352 messageb /usr/bin/dbus-daemon --system --nofork --nopidfile --syslog-only
+  378 avahi    avahi-daemon: running [9be772bcc10b.local]
+  379 avahi    avahi-daemon: chroot helper
+  569 root     /usr/sbin/smbd -D
+  575 root     {smbd-notifyd} /usr/sbin/smbd -D
+  576 root     {smbd-cleanupd} /usr/sbin/smbd -D
+  577 root     /usr/sbin/nmbd -D
+  608 wsdd     python3 /usr/bin/wsdd -w WORKGROUP
+=== daemon-list-smbd ===
+exit status: 0
+Service 'acpid' needs non existent service 'dev'
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
+Service 'watchdog' needs non existent service 'dev'
+ * Caching service dependencies ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+samba:  * status: started
+dbus:  * status: started
+avahi-daemon:  * status: started
+wsdd:  * status: started
+syslog:  * status: started
+  169 root     /sbin/syslogd -t -n
+  352 messageb /usr/bin/dbus-daemon --system --nofork --nopidfile --syslog-only
+  378 avahi    avahi-daemon: running [9be772bcc10b.local]
+  379 avahi    avahi-daemon: chroot helper
+  577 root     /usr/sbin/nmbd -D
+ 1005 root     /usr/sbin/smbd -D
+ 1013 root     {smbd-notifyd} /usr/sbin/smbd -D
+ 1015 root     {smbd-cleanupd} /usr/sbin/smbd -D
+ 1039 wsdd     python3 /usr/bin/wsdd -w WORKGROUP
+tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      1005/smbd
+tcp        0      0 :::445                  :::*                    LISTEN      1005/smbd
+udp        0      0 172.17.255.255:137      0.0.0.0:*                           577/nmbd
+udp        0      0 172.17.0.2:137          0.0.0.0:*                           577/nmbd
+udp        0      0 0.0.0.0:137             0.0.0.0:*                           577/nmbd
+udp        0      0 172.17.255.255:138      0.0.0.0:*                           577/nmbd
+udp        0      0 172.17.0.2:138          0.0.0.0:*                           577/nmbd
+udp        0      0 0.0.0.0:138             0.0.0.0:*                           577/nmbd
+=== rc-update-add ===
+ * service dbus added to runlevel default
+ * service avahi-daemon added to runlevel default
+ * service samba added to runlevel default
+ * service wsdd added to runlevel default
+ * service crond added to runlevel default
+         avahi-daemon |      default                           
+       avahi-dnsconfd |                                        
+                crond |      default                           
+                 dbus |      default                           
+                samba |      default                           
+               syslog |                                        
+                 wsdd |      default                           
+=== samba-stop ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+  577 /usr/sbin/nmbd -D

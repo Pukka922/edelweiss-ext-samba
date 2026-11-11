@@ -1,0 +1,25 @@
+# Overlay of the edelweiss dev environment for edelweiss-ext-samba (README.md: Development, "Trying it in the edelweiss dev
+# environment"). Run in the edelweiss checkout, next to dev/compose.yaml:
+#
+#   docker compose -f dev/compose.yaml -f ../edelweiss-ext-samba/dev/compose.samba.yaml up -d
+#
+# It adds two things to the dev container:
+#
+# - init: true. Docker's init (docker-init) becomes PID 1, and the entrypoint, which execs edelweissd, runs as its child.
+#   edelweissd does not reap the processes that end, so as PID 1 it would leave them as zombies: every daemon that stops
+#   (smbd, avahi, wsdd, the runner of a job). The init reaps them. dev/samba-dev.sh accepts this layout and the one
+#   without init.
+# - the named volume samba-dev at /srv/samba-dev. That volume is a real disk file system (ext4 on the WSL host), which the
+#   navigator of the page offers as a data disk; the root of the container is an overlay, which it does not. Make the
+#   folder to share below it ("Neuer Ordner" in the navigator). The volume survives make dev-down; remove it with "docker
+#   volume rm edelweiss-dev_samba-dev" to start with an empty disk.
+#
+# No cap_add: the container needs no second address, and the folder rights, which write the attribute security.NTACL and
+# need SYS_ADMIN in a container, have it from the cap_add of edelweiss's own dev/compose.yaml, so they work there.
+services:
+  edelweiss:
+    init: true
+    volumes:
+      - samba-dev:/srv/samba-dev
+volumes:
+  samba-dev:

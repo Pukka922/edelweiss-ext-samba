@@ -1,0 +1,24 @@
+=== sshd-start ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.sshd': Read-only file system
+ssh-keygen: generating new host keys: RSA ECDSA ED25519 
+ * Starting sshd ... [ ok ]
+=== apk-add-sshpass ===
+exit status: 0
+=== ssh-password ===
+exit status: 5
+Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.
+Permission denied, please try again.
+=== ssh-batch ===
+exit status: 255
+Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.
+u2@127.0.0.1: Permission denied (publickey,password,keyboard-interactive).
+=== sshd-log ===
+Nov  4 11:11:42 9be772bcc10b auth.info sshd[2258]: Server listening on 0.0.0.0 port 22.
+Nov  4 11:11:42 9be772bcc10b auth.info sshd[2258]: Server listening on :: port 22.
+Nov  4 11:11:43 9be772bcc10b auth.info sshd-session[2270]: User u2 not allowed because account is locked
+Nov  4 11:11:43 9be772bcc10b auth.err sshd-session[2270]: error: Could not get shadow information for NOUSER
+Nov  4 11:11:43 9be772bcc10b auth.info sshd-session[2270]: Failed password for invalid user u2 from 127.0.0.1 port 52700 ssh2
+Nov  4 11:11:43 9be772bcc10b auth.info sshd-session[2270]: Connection closed by invalid user u2 127.0.0.1 port 52700 [preauth]
+Nov  4 11:11:43 9be772bcc10b auth.info sshd-session[2273]: User u2 not allowed because account is locked
+Nov  4 11:11:43 9be772bcc10b auth.info sshd-session[2273]: Connection closed by invalid user u2 127.0.0.1 port 52716 [preauth]

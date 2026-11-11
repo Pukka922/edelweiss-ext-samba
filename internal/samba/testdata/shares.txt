@@ -1,0 +1,116 @@
+=== testparm-s1 ===
+exit status: 0
+Load smb config files from /etc/samba/smb.conf
+Loaded services file OK.
+Weak crypto is allowed by GnuTLS (e.g. NTLM as a compatibility fallback)
+
+Server role: ROLE_STANDALONE
+
+# Global parameters
+[global]
+	disable netbios = Yes
+	disable spoolss = Yes
+	load printers = No
+	log file = /var/log/samba/log.%m
+	max log size = 0
+	netbios name = CAPTURE
+	printcap name = /dev/null
+	server min protocol = SMB3
+	server role = standalone server
+	server smb transports = 445
+	idmap config * : backend = tdb
+	printing = bsd
+
+
+[probe]
+	force group = myUser
+	force user = myUser
+	path = /srv/probe
+	valid users = u1 odd
+
+
+[s1]
+	force group = myUser
+	force user = myUser
+	path = /srv/s1
+	read list = reader
+	valid users = reader writer
+	write list = writer
+=== s1-reader-ls ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:05 2026
+  ..                                  D        0  Wed Nov  4 11:11:05 2026
+  old.txt                             N        4  Wed Nov  4 11:11:05 2026
+  olddir                              D        0  Wed Nov  4 11:11:05 2026
+
+		1055762868 blocks of size 1024. 980211124 blocks available
+=== s1-reader-get ===
+exit status: 0
+getting file \old.txt of size 4 as /tmp/got-reader.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+=== s1-reader-put ===
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \reader-new.txt
+=== s1-reader-mkdir ===
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \reader-dir
+=== s1-reader-rename ===
+exit status: 1
+NT_STATUS_OBJECT_NAME_NOT_FOUND renaming files \reader-new.txt -> \reader-renamed.txt 
+=== s1-reader-del ===
+exit status: 0
+NT_STATUS_ACCESS_DENIED deleting remote file \old.txt
+=== s1-reader-rmdir ===
+exit status: 0
+NT_STATUS_ACCESS_DENIED removing remote directory file \olddir
+=== s1-outsider-ls ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-get ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-put ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-mkdir ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-rename ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-del ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-outsider-rmdir ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== s1-writer-ls ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:05 2026
+  ..                                  D        0  Wed Nov  4 11:11:05 2026
+  old.txt                             N        4  Wed Nov  4 11:11:05 2026
+  olddir                              D        0  Wed Nov  4 11:11:05 2026
+
+		1055762868 blocks of size 1024. 980211112 blocks available
+=== s1-writer-get ===
+exit status: 0
+getting file \old.txt of size 4 as /tmp/got-writer.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+=== s1-writer-put ===
+exit status: 0
+putting file /tmp/local.txt as \writer-new.txt (5.9 kB/s) (average 5.9 kB/s)
+=== s1-writer-mkdir ===
+exit status: 0
+=== s1-writer-rename ===
+exit status: 0
+=== s1-writer-del ===
+exit status: 0
+=== s1-writer-rmdir ===
+exit status: 0
+=== s1-files ===
+exit status: 0
+/srv/s1/writer-renamed.txt myUser:myUser 744 atime=1793790666 mtime=1793790666 ctime=1793790666
+/srv/s1/writer-dir myUser:myUser 755 atime=1793790666 mtime=1793790666 ctime=1793790666
+total 16
+drwxr-xr-x    3 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:11 ..
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 writer-dir
+-rwxr--r--    1 myUser   myUser           6 Nov  4 11:11 writer-renamed.txt

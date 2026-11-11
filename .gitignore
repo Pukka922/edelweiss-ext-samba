@@ -1,0 +1,13 @@
+/build/
+/dist/
+/go.work
+/go.work.sum
+*.test
+*.out
+.DS_Store
+
+# Files of the AI assistant (plans, specs, notes): kept locally, not published
+/.superpowers/
+/docs/superpowers/
+/.claude/
+/CLAUDE.md

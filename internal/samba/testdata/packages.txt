@@ -1,0 +1,183 @@
+=== versions ===
+3.24.2
+apk-tools 3.0.8-r0, compiled for x86_64.
+avahi-0.9_rc4-r0 x86_64 {avahi} (LGPL-2.1-or-later) [installed]
+avahi-libs-0.9_rc4-r0 x86_64 {avahi} (LGPL-2.1-or-later) [installed]
+avahi-openrc-0.9_rc4-r0 x86_64 {avahi} (LGPL-2.1-or-later) [installed]
+busybox-1.37.0-r31 x86_64 {busybox} (GPL-2.0-only) [installed]
+busybox-binsh-1.37.0-r31 x86_64 {busybox} (GPL-2.0-only) [installed]
+busybox-openrc-1.37.0-r31 x86_64 {busybox} (GPL-2.0-only) [installed]
+dbus-1.16.2-r2 x86_64 {dbus} (AFL-2.1 OR GPL-2.0-or-later) [installed]
+dbus-daemon-launch-helper-1.16.2-r2 x86_64 {dbus} (AFL-2.1 OR GPL-2.0-or-later) [installed]
+dbus-libs-1.16.2-r2 x86_64 {dbus} (AFL-2.1 OR GPL-2.0-or-later) [installed]
+dbus-openrc-1.16.2-r2 x86_64 {dbus} (AFL-2.1 OR GPL-2.0-or-later) [installed]
+ldb-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+libsmbclient-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+libwbclient-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+openrc-0.63.2-r0 x86_64 {openrc} (BSD-2-Clause) [installed]
+openrc-user-0.63.2-r0 x86_64 {openrc} (BSD-2-Clause) [installed]
+openssh-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-client-common-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-client-default-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-keygen-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-server-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-server-common-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-server-common-openrc-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+openssh-sftp-server-10.3_p1-r1 x86_64 {openssh} (SSH-OpenSSH) [installed]
+samba-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-client-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-client-libs-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-common-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-common-server-libs-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-common-tools-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-libs-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-server-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-server-openrc-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+samba-util-libs-4.23.8-r0 x86_64 {samba} (GPL-3.0-or-later AND LGPL-3.0-or-later) [installed]
+talloc-2.4.4-r1 x86_64 {talloc} (LGPL-3.0-or-later) [installed]
+tdb-libs-1.4.15-r1 x86_64 {tdb} (LGPL-3.0-or-later) [installed]
+tevent-0.17.1-r1 x86_64 {tevent} (LGPL-3.0-or-later) [installed]
+wsdd-0.9-r0 x86_64 {wsdd} (MIT) [installed]
+wsdd-openrc-0.9-r0 x86_64 {wsdd} (MIT) [installed]
+Version 4.23.8
+Version 4.23.8
+=== apk-search ===
+exit status: 1
+avahi-0.9_rc4-r0
+dbus-1.16.2-r2
+samba-4.23.8-r0
+wsdd-0.9-r0
+=== apk-info-L-samba ===
+exit status: 0
+samba-4.23.8-r0 contains:
+
+=== apk-info-R-samba ===
+exit status: 0
+samba-4.23.8-r0 depends on:
+samba-server=4.23.8-r0
+samba-client=4.23.8-r0
+samba-common-tools=4.23.8-r0
+
+=== apk-info-L-parts ===
+avahi-0.9_rc4-r0 contains:
+usr/sbin/avahi-daemon
+usr/sbin/avahi-dnsconfd
+avahi-openrc-0.9_rc4-r0 contains:
+etc/init.d/avahi-daemon
+etc/init.d/avahi-dnsconfd
+dbus-1.16.2-r2 contains:
+usr/bin/dbus-cleanup-sockets
+usr/bin/dbus-daemon
+usr/bin/dbus-monitor
+usr/bin/dbus-run-session
+usr/bin/dbus-send
+usr/bin/dbus-test-tool
+usr/bin/dbus-update-activation-environment
+usr/bin/dbus-uuidgen
+dbus-openrc-1.16.2-r2 contains:
+etc/conf.d/dbus
+etc/init.d/dbus
+etc/user/conf.d/dbus
+etc/user/init.d/dbus
+samba-client-4.23.8-r0 contains:
+usr/bin/cifsdd
+usr/bin/dbwrap_tool
+usr/bin/dumpmscat
+usr/bin/mdsearch
+usr/bin/mvxattr
+usr/bin/nmblookup
+usr/bin/oLschema2ldif
+usr/bin/regdiff
+usr/bin/regpatch
+usr/bin/regshell
+usr/bin/regtree
+usr/bin/rpcclient
+usr/bin/samba-regedit
+usr/bin/sharesec
+usr/bin/smbcacls
+usr/bin/smbclient
+usr/bin/smbcquotas
+usr/bin/smbget
+usr/bin/smbprint
+usr/bin/smbspool
+usr/bin/smbtar
+usr/bin/smbtree
+usr/bin/wspsearch
+samba-common-tools-4.23.8-r0 contains:
+usr/bin/net
+usr/bin/pdbedit
+usr/bin/profiles
+usr/bin/samba-log-parser
+usr/bin/smbcontrol
+usr/bin/smbpasswd
+usr/bin/testparm
+samba-server-4.23.8-r0 contains:
+usr/bin/smbstatus
+usr/sbin/eventlogadm
+usr/sbin/nmbd
+usr/sbin/smbd
+samba-server-openrc-4.23.8-r0 contains:
+etc/conf.d/samba
+etc/init.d/samba
+wsdd-0.9-r0 contains:
+usr/bin/wsdd
+wsdd-openrc-0.9-r0 contains:
+etc/conf.d/wsdd
+etc/init.d/wsdd
+=== tools ===
+smbd: /usr/sbin/smbd
+/usr/sbin/smbd is owned by samba-server-4.23.8-r0
+nmbd: /usr/sbin/nmbd
+/usr/sbin/nmbd is owned by samba-server-4.23.8-r0
+smbpasswd: /usr/bin/smbpasswd
+/usr/bin/smbpasswd is owned by samba-common-tools-4.23.8-r0
+pdbedit: /usr/bin/pdbedit
+/usr/bin/pdbedit is owned by samba-common-tools-4.23.8-r0
+sharesec: /usr/bin/sharesec
+/usr/bin/sharesec is owned by samba-client-4.23.8-r0
+smbstatus: /usr/bin/smbstatus
+/usr/bin/smbstatus is owned by samba-server-4.23.8-r0
+smbcontrol: /usr/bin/smbcontrol
+/usr/bin/smbcontrol is owned by samba-common-tools-4.23.8-r0
+testparm: /usr/bin/testparm
+/usr/bin/testparm is owned by samba-common-tools-4.23.8-r0
+smbclient: /usr/bin/smbclient
+/usr/bin/smbclient is owned by samba-client-4.23.8-r0
+smbcacls: /usr/bin/smbcacls
+/usr/bin/smbcacls is owned by samba-client-4.23.8-r0
+samba-tool: none
+rc-update: /sbin/rc-update
+/sbin/rc-update is owned by openrc-0.63.2-r0
+rc-service: /sbin/rc-service
+/sbin/rc-service is owned by openrc-0.63.2-r0
+lbu: none
+busybox: /bin/busybox
+/bin/busybox is owned by busybox-1.37.0-r31
+wsdd: /usr/bin/wsdd
+/usr/bin/wsdd is owned by wsdd-0.9-r0
+avahi-daemon: /usr/sbin/avahi-daemon
+/usr/sbin/avahi-daemon is owned by avahi-0.9_rc4-r0
+dbus-daemon: /usr/bin/dbus-daemon
+/usr/bin/dbus-daemon is owned by dbus-1.16.2-r2
+sshd: /usr/sbin/sshd
+/usr/sbin/sshd is owned by openssh-server-10.3_p1-r1
+=== init-scripts ===
+-rw-r--r--    1 root     root            54 Jan 10  2026 crond
+-rw-r--r--    1 root     root           242 Mar 20  2026 dbus
+-rw-r--r--    1 root     root           376 May 28 04:58 samba
+-rw-r--r--    1 root     root           687 Aug 31 06:52 sshd
+-rw-r--r--    1 root     root            18 Jan 10  2026 syslog
+-rw-r--r--    1 root     root           448 Jun 15  2025 wsdd
+-rwxr-xr-x    1 root     root           472 May 14 10:15 avahi-daemon
+-rwxr-xr-x    1 root     root           457 May 14 10:15 avahi-dnsconfd
+-rwxr-xr-x    1 root     root           204 Jan 10  2026 crond
+-rwxr-xr-x    1 root     root           795 Mar 20  2026 dbus
+-rwxr-xr-x    1 root     root          1570 May 28 04:58 samba
+-rwxr-xr-x    1 root     root          3905 Aug 31 06:52 sshd
+-rwxr-xr-x    1 root     root           292 Jan 10  2026 syslog
+-rwxr-xr-x    1 root     root          1379 Jun 15  2025 wsdd
+/etc/init.d/samba is owned by samba-server-openrc-4.23.8-r0
+/etc/init.d/avahi-daemon is owned by avahi-openrc-0.9_rc4-r0
+/etc/init.d/dbus is owned by dbus-openrc-1.16.2-r2
+/etc/init.d/wsdd is owned by wsdd-openrc-0.9-r0
+/etc/init.d/sshd is owned by openssh-server-common-openrc-10.3_p1-r1

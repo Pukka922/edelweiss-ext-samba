@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.go]
+indent_style = tab
+
+[*.{ts,tsx,js,json,css,md,yaml,yml,toml}]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+# The captured outputs of Samba, OpenRC and busybox are kept as they are: trailing spaces, missing final newlines, the
+# CR LF of ssh and the indentation belong to them.
+[internal/samba/testdata/*]
+charset = unset
+end_of_line = unset
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false
+insert_final_newline = false
+

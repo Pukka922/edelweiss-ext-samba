@@ -1,0 +1,72 @@
+=== smbstatus-help ===
+exit status: 0
+Usage: [OPTION...]
+  -p, --processes                    Show processes only
+  -v, --verbose                      Be verbose
+  -L, --locks                        Show locks only
+  -S, --shares                       Show shares only
+  -N, --notify                       Show notifies
+  -u, --user=STRING                  Switch to user
+  -b, --brief                        Be brief
+  -P, --profile                      Do profiling
+  -R, --profile-rates                Show call rates
+  -B, --byterange                    Include byte range locks
+  -n, --numeric                      Numeric uid/gid
+  -j, --json                         JSON output
+  -f, --fast                         Skip checks if processes still exist
+      --resolve-uids                 Try to resolve UIDs to usernames
+
+Help options:
+  -?, --help                         Show this help message
+      --usage                        Display brief usage message
+
+Common Samba options:
+  -d, --debuglevel=DEBUGLEVEL        Set debug level
+      --debug-stdout                 Send debug output to standard output
+  -s, --configfile=CONFIGFILE        Use alternative configuration file
+      --option=name=value            Set smb.conf option from command line
+  -l, --log-basename=LOGFILEBASE     Basename for log/debug files
+      --leak-report                  enable talloc leak reporting on exit
+      --leak-report-full             enable full talloc leak reporting on exit
+
+Version options:
+  -V, --version                      Print version
+=== smbstatus-json-none-status ===
+exit status: 0
+=== smbstatus-text ===
+exit status: 0
+
+Samba version 4.23.8
+PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing              
+----------------------------------------------------------------------------------------------------------------------------------------
+1551    reader       edelweiss-samba 127.0.0.1 (ipv4:127.0.0.1:49908)          SMB3_11           -                    partial(AES-128-GMAC)
+1557    writer       edelweiss-samba 127.0.0.1 (ipv4:127.0.0.1:49916)          SMB3_11           -                    partial(AES-128-GMAC)
+
+Service      pid     Machine       Connected at                     Encryption   Signing     
+---------------------------------------------------------------------------------------------
+s1           1557    127.0.0.1     Wed Nov  4 11:11:30 2026 UTC     -            -           
+s1           1551    127.0.0.1     Wed Nov  4 11:11:30 2026 UTC     -            -           
+
+
+Locked files:
+Pid          User(ID)   DenyMode   Access      R/W        Oplock           SharePath   Name   Time
+--------------------------------------------------------------------------------------------------
+1557         1000       DENY_NONE  0x3         RDWR       NONE             /srv/s1   open.txt   Wed Nov  4 11:11:30 2026
+
+=== smbstatus-b ===
+exit status: 0
+
+Samba version 4.23.8
+PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing              
+----------------------------------------------------------------------------------------------------------------------------------------
+1551    reader       edelweiss-samba 127.0.0.1 (ipv4:127.0.0.1:49908)          SMB3_11           -                    partial(AES-128-GMAC)
+1557    writer       edelweiss-samba 127.0.0.1 (ipv4:127.0.0.1:49916)          SMB3_11           -                    partial(AES-128-GMAC)
+=== smbstatus-L-json ===
+exit status: 0
+{"timestamp": "2026-11-04T11:11:30.563651+0000", "version": "4.23.8", "smb_conf": "/etc/samba/smb.conf", "open_files": {"/srv/s1/open.txt": {"service_path": "/srv/s1", "filename": "open.txt", "fileid": {"devid": 90, "inode": 332772, "extid": 0}, "num_pending_deletes": 0, "opens": {"1557/3": {"server_id": {"pid": "1557", "task_id": "0", "vnn": "4294967295", "unique_id": "15681274229608193618"}, "uid": 1000, "share_file_id": "3", "sharemode": {"hex": "0x00000003", "READ": true, "WRITE": true, "DELETE": false, "text": "RW"}, "access_mask": {"hex": "0x00000003", "READ_DATA": true, "WRITE_DATA": true, "APPEND_DATA": false, "READ_EA": false, "WRITE_EA": false, "EXECUTE": false, "READ_ATTRIBUTES": false, "WRITE_ATTRIBUTES": false, "DELETE_CHILD": false, "DELETE": false, "READ_CONTROL": false, "WRITE_DAC": false, "SYNCHRONIZE": false, "ACCESS_SYSTEM_SECURITY": false, "text": "RW"}, "caching": {"READ": false, "WRITE": false, "HANDLE": false, "hex": "0x00000000", "text": ""}, "oplock": {}, "lease": {}, "opened_at": "2026-11-04T11:11:30.362180+00:00"}}}}}
+=== smbstatus-clients ===
+--- reader
+Try "help" to get a list of possible commands.
+--- writer
+Try "help" to get a list of possible commands.
+open file \open.txt: for read/write fnum 1

@@ -1,0 +1,288 @@
+=== recycle-testparm ===
+exit status: 0
+Load smb config files from /etc/samba/smb.conf
+Loaded services file OK.
+Weak crypto is allowed by GnuTLS (e.g. NTLM as a compatibility fallback)
+
+
+[rb]
+	force group = myUser
+	force user = myUser
+	path = /srv/rb
+	read list = reader
+	valid users = reader writer
+	vfs objects = recycle
+	write list = writer
+	recycle:touch = yes
+	recycle:versions = yes
+	recycle:keeptree = yes
+	recycle:repository = #recycle
+=== recycle-before ===
+exit status: 0
+/srv/rb/dir/a.txt myUser:myUser 644 atime=1577836800 mtime=1577836800 ctime=1793790673
+=== recycle-delete ===
+exit status: 0
+deleted between 1793790674 and 1793790674 (seconds since the epoch)
+/srv/rb:
+total 16
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 #recycle
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:11 ..
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 dir
+
+/srv/rb/#recycle:
+total 12
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 dir
+
+/srv/rb/#recycle/dir:
+total 12
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 a.txt
+
+/srv/rb/dir:
+total 8
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+exit status: 0
+/srv/rb/#recycle myUser:myUser 700 atime=1793790674 mtime=1793790674 ctime=1793790674
+/srv/rb/#recycle/dir myUser:myUser 700 atime=1793790674 mtime=1793790674 ctime=1793790674
+/srv/rb/#recycle/dir/a.txt myUser:myUser 644 atime=1793790674 mtime=1577836800 ctime=1793790674
+=== recycle-versions ===
+exit status: 0
+deleted between 1793790674 and 1793790674 (seconds since the epoch)
+total 16
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of a.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 a.txt
+exit status: 0
+/srv/rb/#recycle/dir/a.txt myUser:myUser 644 atime=1793790674 mtime=1577836800 ctime=1793790674
+/srv/rb/#recycle/dir/Copy #1 of a.txt myUser:myUser 644 atime=1793790674 mtime=1577836800 ctime=1793790674
+=== recycle-reader-delete ===
+exit status: 0
+NT_STATUS_ACCESS_DENIED deleting remote file \b.txt
+/srv/rb:
+total 20
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 #recycle
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 b.txt
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 dir
+
+/srv/rb/#recycle:
+total 12
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 dir
+=== recycle-ls ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:14 2026
+  #recycle                            D        0  Wed Nov  4 11:11:14 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210700 blocks available
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  a.txt                               N        3  Wed Jan  1 00:00:00 2020
+  Copy #1 of a.txt                    N        3  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210700 blocks available
+=== recycle-delete-in-repository ===
+exit status: 0
+deleted between 1793790674 and 1793790674 (seconds since the epoch)
+/srv/rb/#recycle:
+total 12
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 dir
+
+/srv/rb/#recycle/dir:
+total 12
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of a.txt
+=== recycle-touch-mtime ===
+exit status: 0
+deleted between 1793790675 and 1793790675 (seconds since the epoch)
+exit status: 0
+/srv/rb/#recycle/dir/m.txt myUser:myUser 644 atime=1793790675 mtime=1793790675 ctime=1793790675
+=== recycle-times ===
+overlay / overlay rw,relatime,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2351/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/67/fs,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2352/fs,workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2352/work 0 0
+--- before the deletion
+/srv/rb/dir/t.txt atime=1577836800.000000000 mtime=1577836800.000000000 ctime=1793790676.716807412
+--- the deletion
+exit status: 0
+deleted between 1793790676 and 1793790676 (seconds since the epoch)
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790676.760807423
+--- a read
+exit status: 0
+getting file \#recycle\dir\t.txt of size 3 as /tmp/t.txt (2.9 KiloBytes/sec) (average 2.9 KiloBytes/sec)
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790676.760807423
+--- a second read
+exit status: 0
+getting file \#recycle\dir\t.txt of size 3 as /tmp/t.txt (2.9 KiloBytes/sec) (average 2.9 KiloBytes/sec)
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790676.760807423
+--- a listing
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:16 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  t.txt                               N        3  Wed Jan  1 00:00:00 2020
+  Copy #1 of a.txt                    N        3  Wed Jan  1 00:00:00 2020
+  m.txt                               N        2  Wed Nov  4 11:11:15 2026
+
+		1055762868 blocks of size 1024. 980210688 blocks available
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790676.760807423
+--- a change of the DOS attributes
+exit status: 0
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790681.348808553
+--- an extended attribute written
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790682.452808799
+--- a second deletion of a file with the same name
+exit status: 0
+deleted between 1793790683 and 1793790683 (seconds since the epoch)
+/srv/rb/#recycle/dir/t.txt atime=1793790676.765919125 mtime=1577836800.000000000 ctime=1793790682.452808799
+/srv/rb/#recycle/dir/Copy #1 of t.txt atime=1793790683.601585555 mtime=1577836800.000000000 ctime=1793790683.596809054
+=== recycle-hide-hide-files ===
+--- reader ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:24 2026
+  #recycle                           DH        0  Wed Nov  4 11:11:14 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210664 blocks available
+--- reader ls #recycle
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:23 2026
+
+		1055762868 blocks of size 1024. 980210664 blocks available
+--- writer ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:24 2026
+  #recycle                           DH        0  Wed Nov  4 11:11:14 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210664 blocks available
+--- writer ls #recycle
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:23 2026
+
+		1055762868 blocks of size 1024. 980210664 blocks available
+--- writer del
+exit status: 0
+deleted between 1793790684 and 1793790684 (seconds since the epoch)
+/srv/rb/#recycle/dir:
+total 28
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of a.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of t.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 hide-files.txt
+-rw-r--r--    1 myUser   myUser           2 Nov  4 11:11 m.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 t.txt
+
+/srv/rb/dir:
+total 8
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+=== recycle-hide-veto-files ===
+--- reader ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:25 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210652 blocks available
+--- reader ls #recycle
+exit status: 1
+NT_STATUS_OBJECT_NAME_NOT_FOUND listing \#recycle\*
+--- writer ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:25 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210636 blocks available
+--- writer ls #recycle
+exit status: 1
+NT_STATUS_OBJECT_NAME_NOT_FOUND listing \#recycle\*
+--- writer del
+exit status: 0
+deleted between 1793790686 and 1793790686 (seconds since the epoch)
+/srv/rb/#recycle/dir:
+total 32
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of a.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of t.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 hide-files.txt
+-rw-r--r--    1 myUser   myUser           2 Nov  4 11:11 m.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 t.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 veto-files.txt
+
+/srv/rb/dir:
+total 8
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..
+=== recycle-hide-include-user ===
+--- reader ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:27 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210624 blocks available
+--- reader ls #recycle
+exit status: 1
+NT_STATUS_OBJECT_NAME_NOT_FOUND listing \#recycle\*
+--- writer ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:27 2026
+  #recycle                            D        0  Wed Nov  4 11:11:14 2026
+  b.txt                               N        2  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980210624 blocks available
+--- writer ls #recycle
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:14 2026
+  ..                                  D        0  Wed Nov  4 11:11:14 2026
+  dir                                 D        0  Wed Nov  4 11:11:26 2026
+
+		1055762868 blocks of size 1024. 980210624 blocks available
+--- writer del
+exit status: 0
+deleted between 1793790687 and 1793790687 (seconds since the epoch)
+/srv/rb/#recycle/dir:
+total 36
+drwx------    2 myUser   myUser        4096 Nov  4 11:11 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:11 ..
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of a.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 Copy #1 of t.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 hide-files.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 include-user.txt
+-rw-r--r--    1 myUser   myUser           2 Nov  4 11:11 m.txt
+-rw-r--r--    1 myUser   myUser           3 Jan  1  2020 t.txt
+-rw-r--r--    1 myUser   myUser           2 Jan  1  2020 veto-files.txt
+
+/srv/rb/dir:
+total 8
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:11 ..

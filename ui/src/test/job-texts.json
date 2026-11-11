@@ -1,0 +1,34 @@
+{
+  "kinds": [
+    "folder-rights",
+    "recycle-empty",
+    "recycle-restore",
+    "service-account",
+    "settings",
+    "setup",
+    "share-add",
+    "share-delete",
+    "share-edit",
+    "start",
+    "user-drop"
+  ],
+  "labels": [
+    "acl",
+    "backup",
+    "check",
+    "cleanup",
+    "conf",
+    "config",
+    "convert",
+    "discovery",
+    "empty",
+    "group",
+    "lbu",
+    "prepare",
+    "reload",
+    "restore",
+    "runlevel",
+    "service",
+    "shareacl"
+  ]
+}

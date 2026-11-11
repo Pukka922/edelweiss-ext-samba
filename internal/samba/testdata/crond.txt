@@ -1,0 +1,7 @@
+=== crond-start ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.crond': Read-only file system
+ * Starting busybox crond ... [ ok ]
+exit status: 0
+ * status: started
+Nov  4 11:11:41 9be772bcc10b cron.info crond[2202]: crond (busybox 1.37.0) started, log level 8

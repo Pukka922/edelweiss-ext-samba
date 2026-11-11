@@ -1,0 +1,20 @@
+=== missing-disk-false ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== missing-disk-reason ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+the disk is missing
+=== preexec-args ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:11 2026
+  ..                                  D        0  Wed Nov  4 11:11:11 2026
+
+		1055762868 blocks of size 1024. 980210732 blocks available
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:11 2026
+  ..                                  D        0  Wed Nov  4 11:11:11 2026
+
+		1055762868 blocks of size 1024. 980210732 blocks available
+[--name][My][Share][--quoted][My Share][--user][writer]
+[--name][it_s__x][--quoted][it_s__x]

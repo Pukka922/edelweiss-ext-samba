@@ -1,0 +1,551 @@
+=== pu-accounts ===
+addgroup -S edelweiss-samba: exit status: 0
+adduser myUser: exit status: 0
+=== pu-stats-before ===
+/srv/pu myUser:myUser 755 mtime=1793805346
+/srv/pu/#recycle myUser:myUser 700 mtime=1793805346
+/srv/pu/#recycle/dir myUser:myUser 700 mtime=1793805346
+/srv/pu/#recycle/dir/gone.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/#recycle/sub myUser:myUser 700 mtime=1793805346
+/srv/pu/#recycle/sub/gone.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/outside-link root:root 777 mtime=1793805346
+/srv/pu/private myUser:myUser 700 mtime=1793805346
+/srv/pu/private/p.txt myUser:myUser 600 mtime=1577836800
+/srv/pu/sub myUser:myUser 755 mtime=1793805346
+/srv/pu/sub/deep myUser:myUser 755 mtime=1793805346
+/srv/pu/sub/deep/old2.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/sub/old.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/sub/secret-link root:root 777 mtime=1793805346
+/srv/pu/top.txt myUser:myUser 644 mtime=1577836800
+=== pu-convert ===
+--samba-tool convert --share pu
+exit status: 0
+(9/100%)
+(18/100%)
+(27/100%)
+(36/100%)
+(45/100%)
+(54/100%)
+(63/100%)
+(72/100%)
+(81/100%)
+(90/100%)
+(100/100%)
+skipped: other_group=0 hard_link=0 has_default_acl=0
+=== pu-stats-converted ===
+/srv/pu myUser:myUser 775 mtime=1793805346
+/srv/pu/#recycle myUser:myUser 770 mtime=1793805346
+/srv/pu/#recycle/dir myUser:myUser 770 mtime=1793805346
+/srv/pu/#recycle/dir/gone.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/#recycle/sub myUser:myUser 770 mtime=1793805346
+/srv/pu/#recycle/sub/gone.txt myUser:myUser 644 mtime=1577836800
+/srv/pu/outside-link root:root 777 mtime=1793805346
+/srv/pu/private myUser:myUser 770 mtime=1793805346
+/srv/pu/private/p.txt myUser:myUser 660 mtime=1577836800
+/srv/pu/sub myUser:myUser 775 mtime=1793805346
+/srv/pu/sub/deep myUser:myUser 775 mtime=1793805346
+/srv/pu/sub/deep/old2.txt myUser:myUser 664 mtime=1577836800
+/srv/pu/sub/old.txt myUser:myUser 664 mtime=1577836800
+/srv/pu/sub/secret-link root:root 777 mtime=1793805346
+/srv/pu/top.txt myUser:myUser 664 mtime=1577836800
+=== pu-default-acls ===
+/srv/pu/#recycle/dir: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/#recycle/sub: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/#recycle: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/private: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub/deep: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+=== pu-apply-share ===
+--samba-tool apply-acl --share pu --folder  --rights {"usera":{"right":"write","sid":"S-1-5-21-1571942482-2724129038-1413376436-1000"},"userb":{"right":"write","sid":"S-1-5-21-1571942482-2724129038-1413376436-1001"},"userc":{"right":"read","sid":"S-1-5-21-1571942482-2724129038-1413376436-1002"}}
+exit status: 0
+(11/100%)
+(22/100%)
+(33/100%)
+(44/100%)
+(55/100%)
+(66/100%)
+(77/100%)
+(88/100%)
+(100/100%)
+=== pu-render ===
+--- /etc/samba/edelweiss-r-4b4d5589e12d32d5-userc.conf
+veto files = /#recycle/
+--- /etc/samba/smb.conf
+# Made by edelweiss-ext-samba. Changes are overwritten.
+
+[global]
+	server role = standalone server
+	workgroup = WORKGROUP
+	disable netbios = yes
+	server min protocol = SMB3
+	smb ports = 445
+	interfaces = lo
+	bind interfaces only = yes
+	hosts allow = 127.0.0.1 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7 fe80::/10
+	access based share enum = yes
+	map to guest = never
+	load printers = no
+	printing = bsd
+	printcap name = /dev/null
+	disable spoolss = yes
+	log file = /var/log/samba/log.%m
+	max log size = 1000
+	fruit:aapl = yes
+	fruit:model = MacSamba
+	fruit:metadata = stream
+	fruit:nfs_aces = no
+	fruit:posix_rename = yes
+	fruit:veto_appledouble = no
+	fruit:delete_empty_adfiles = yes
+	fruit:wipe_intentionally_left_blank_rfork = yes
+
+[pu]
+	path = /srv/pu
+	browseable = yes
+	force group = myUser
+	inherit owner = unix only
+	create mask = 0664
+	directory mask = 2775
+	acl_xattr:ignore system acls = yes
+	hide unreadable = yes
+	valid users = usera userb userc
+	read list = userc
+	write list = usera userb
+	root preexec = '/bin/true' --samba-tool check-share --name '%S'
+	root preexec close = yes
+	vfs objects = catia fruit streams_xattr acl_xattr recycle
+	recycle:touch = yes
+	recycle:versions = yes
+	recycle:keeptree = yes
+	recycle:repository = #recycle
+	recycle:directory_mode = 0770
+	recycle:subdir_mode = 0770
+	include = /etc/samba/edelweiss-r-4b4d5589e12d32d5-%U.conf
+=== pu-start ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+ * Starting nmbd ... [ ok ]
+smbd listens on 127.0.0.1:445: true, 100ms after the start
+=== pu-apply-sub ===
+--samba-tool apply-acl --share pu --folder sub --rights {"usera":{"right":"write","sid":"S-1-5-21-1571942482-2724129038-1413376436-1000"},"userb":{"right":"read","sid":"S-1-5-21-1571942482-2724129038-1413376436-1001"}}
+exit status: 0
+(25/100%)
+(50/100%)
+(75/100%)
+(100/100%)
+=== pu-readback ===
+--- smbcacls \
+exit status: 0
+REVISION:1
+CONTROL:0x9004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x3/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1002:0/0x3/0x001200a9
+--- smbcacls sub
+exit status: 0
+REVISION:1
+CONTROL:0x9004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x3/0x001200a9
+--- smbcacls sub\old.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x10/0x001200a9
+--- smbcacls sub\deep
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x13/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x13/0x001200a9
+--- smbcacls top.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1002:0/0x10/0x001200a9
+--- smbcacls #recycle
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x13/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x13/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1002:0/0x13/0x001200a9
+/srv/pu: security.NTACL = 0100010000000200010004901c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020074000300000000032400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000032400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e903000000032400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54ea030000
+/srv/pu: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub: security.NTACL = 0100010000000200010004901c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000032400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000032400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+/srv/pu/sub: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub/old.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000102400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000102400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+/srv/pu/sub/deep: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000132400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000132400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+/srv/pu/sub/deep: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/top.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020074000300000000102400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000102400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e903000000102400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54ea030000
+/srv/pu/#recycle: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020074000300000000132400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000132400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e903000000132400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54ea030000
+/srv/pu/#recycle: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+=== pu-dacl-without-share-acl ===
+--- pu: put /tmp/local.txt sub\a-own1.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\a-own1.txt (5.9 kB/s) (average 5.9 kB/s)
+--- usera sets the DACL of sub\a-own1.txt to usera FULL (--set: WRITE_DAC only)
+exit status: 0
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-5-21-1571942482-2724129038-1413376436-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x0/0x001f01ff
+the DACL-only change worked: yes
+=== pu-share-acl ===
+exit status: 0
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:ALLOWED/0x0/CHANGE
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:ALLOWED/0x0/CHANGE
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1002:ALLOWED/0x0/READ
+=== pu-enforce ===
+--- pu: ls as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 15:15:46 2026
+  ..                                  D        0  Wed Nov  4 15:15:46 2026
+  sub                                 D        0  Wed Nov  4 15:15:47 2026
+  #recycle                            D        0  Wed Nov  4 15:15:46 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+  private                             D        0  Wed Nov  4 15:15:46 2026
+
+		1055762868 blocks of size 1024. 979032492 blocks available
+--- pu: get top.txt /tmp/pu.txt as usera: yes
+exit status: 0
+getting file \top.txt of size 4 as /tmp/pu.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- pu: put /tmp/local.txt a-root.txt; mkdir a-rootdir as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \a-root.txt (2.9 kB/s) (average 2.9 kB/s)
+--- pu: ls sub\* as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 15:15:47 2026
+  ..                                  D        0  Wed Nov  4 15:15:47 2026
+  deep                                D        0  Wed Nov  4 15:15:46 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 979032472 blocks available
+--- pu: get sub\old.txt /tmp/pu.txt as usera: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/pu.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- pu: put /tmp/local.txt sub\a-sub.txt; mkdir sub\a-dir; put /tmp/local.txt sub\a-dir\inner.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\a-sub.txt (5.9 kB/s) (average 5.9 kB/s)
+putting file /tmp/local.txt as \sub\a-dir\inner.txt (5.9 kB/s) (average 5.9 kB/s)
+--- pu: put /tmp/local.txt sub\old.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\old.txt (5.9 kB/s) (average 5.9 kB/s)
+--- pu: put /tmp/local.txt b-root.txt; mkdir b-rootdir as userb: yes
+exit status: 0
+putting file /tmp/local.txt as \b-root.txt (2.9 kB/s) (average 2.9 kB/s)
+--- pu: ls sub\* as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 15:15:47 2026
+  ..                                  D        0  Wed Nov  4 15:15:48 2026
+  a-sub.txt                           A        6  Wed Nov  4 15:15:47 2026
+  a-dir                               D        0  Wed Nov  4 15:15:47 2026
+  deep                                D        0  Wed Nov  4 15:15:46 2026
+  old.txt                             A        6  Wed Nov  4 15:15:47 2026
+
+		1055762868 blocks of size 1024. 979032436 blocks available
+--- pu: get sub\old.txt /tmp/pu.txt as userb: yes
+exit status: 0
+getting file \sub\old.txt of size 6 as /tmp/pu.txt (5.9 KiloBytes/sec) (average 5.9 KiloBytes/sec)
+--- pu: put /tmp/local.txt sub\b-sub.txt as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\b-sub.txt
+--- pu: mkdir sub\b-dir as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\b-dir
+--- pu: put /tmp/local.txt sub\deep\old2.txt as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\deep\old2.txt
+--- pu: del sub\old.txt as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED deleting remote file \sub\old.txt
+--- pu: ls as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 15:15:48 2026
+  ..                                  D        0  Wed Nov  4 15:15:48 2026
+  a-root.txt                          A        6  Wed Nov  4 15:15:47 2026
+  b-rootdir                           D        0  Wed Nov  4 15:15:48 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+  a-rootdir                           D        0  Wed Nov  4 15:15:47 2026
+  b-root.txt                          A        6  Wed Nov  4 15:15:48 2026
+  private                             D        0  Wed Nov  4 15:15:46 2026
+
+		1055762868 blocks of size 1024. 979032436 blocks available
+--- pu: get top.txt /tmp/pu.txt as userc: yes
+exit status: 0
+getting file \top.txt of size 4 as /tmp/pu.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- pu: put /tmp/local.txt c-root.txt as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \c-root.txt
+--- pu: ls sub\* as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- pu: get sub\old.txt /tmp/pu.txt as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- pu: ls #recycle\* as userc: no
+exit status: 1
+NT_STATUS_OBJECT_NAME_NOT_FOUND listing \#recycle\*
+=== pu-new-modes ===
+/srv/pu/a-root.txt uid=1000 gid=1000 mode=0664 world-writable=no
+/srv/pu/a-rootdir uid=1000 gid=1000 mode=0775 world-writable=no
+/srv/pu/a-rootdir: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/b-root.txt uid=1000 gid=1000 mode=0664 world-writable=no
+/srv/pu/b-rootdir uid=1000 gid=1000 mode=0775 world-writable=no
+/srv/pu/b-rootdir: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub/a-sub.txt uid=1000 gid=1000 mode=0664 world-writable=no
+/srv/pu/sub/a-dir uid=1000 gid=1000 mode=0775 world-writable=no
+/srv/pu/sub/a-dir: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub/a-dir/inner.txt uid=1000 gid=1000 mode=0664 world-writable=no
+=== pu-dacl-with-share-acl ===
+--- pu: put /tmp/local.txt sub\a-own2.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\a-own2.txt (5.9 kB/s) (average 5.9 kB/s)
+--- usera sets the DACL of sub\a-own2.txt to usera FULL (--set: WRITE_DAC only)
+exit status: 1
+Failed to open \sub\a-own2.txt: NT_STATUS_ACCESS_DENIED
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-5-21-1571942482-2724129038-1413376436-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x0/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x0/0x001200a9
+--- usera sets the DACL of sub\old.txt to usera FULL (--set: WRITE_DAC only)
+exit status: 1
+Failed to open \sub\old.txt: NT_STATUS_ACCESS_DENIED
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x10/0x001200a9
+=== pu-recycle ===
+--- pu: del top.txt; del sub\a-sub.txt; del sub\a-dir\inner.txt as usera: yes
+exit status: 0
+--- pu: del b-root.txt; del a-root.txt as userb: yes
+exit status: 0
+/srv/pu/#recycle:
+total 48
+drwxrwx---    4 myUser   myUser        4096 Nov  4 15:15 .
+drwxrwxr-x    7 myUser   myUser        4096 Nov  4 15:15 ..
+-rw-rw-r--    1 myUser   myUser           6 Nov  4 15:15 a-root.txt
+-rw-rw-r--    1 myUser   myUser           6 Nov  4 15:15 b-root.txt
+drwxrwx---    2 myUser   myUser        4096 Nov  4 15:15 dir
+drwxrwx---    3 myUser   myUser        4096 Nov  4 15:15 sub
+-rw-rw-r--    1 myUser   myUser           4 Jan  1  2020 top.txt
+
+/srv/pu/#recycle/dir:
+total 16
+drwxrwx---    2 myUser   myUser        4096 Nov  4 15:15 .
+drwxrwx---    4 myUser   myUser        4096 Nov  4 15:15 ..
+-rw-r--r--    1 myUser   myUser           5 Jan  1  2020 gone.txt
+
+/srv/pu/#recycle/sub:
+total 28
+drwxrwx---    3 myUser   myUser        4096 Nov  4 15:15 .
+drwxrwx---    4 myUser   myUser        4096 Nov  4 15:15 ..
+drwxrwx---    2 usera    myUser        4096 Nov  4 15:15 a-dir
+-rw-rw-r--    1 myUser   myUser           6 Nov  4 15:15 a-sub.txt
+-rw-r--r--    1 myUser   myUser          14 Jan  1  2020 gone.txt
+
+/srv/pu/#recycle/sub/a-dir:
+total 16
+drwxrwx---    2 usera    myUser        4096 Nov  4 15:15 .
+drwxrwx---    3 myUser   myUser        4096 Nov  4 15:15 ..
+-rw-rw-r--    1 myUser   myUser           6 Nov  4 15:15 inner.txt
+/srv/pu/#recycle/sub/a-dir usera:myUser 770
+/srv/pu/#recycle/sub/a-dir: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+--- smbcacls #recycle\sub\a-dir as usera
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-5-21-1571942482-2724129038-1413376436-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x0/0x001f01ff
+ACL:S-1-22-2-1000:0/0x0/0x001201bf
+ACL:S-1-5-18:0/0x0/0x001f01ff
+=== pu-restore ===
+--- pu: del sub\deep\old2.txt; rmdir sub\deep as usera: yes
+exit status: 0
+--samba-tool recycle-restore --share pu --item sub/deep/old2.txt
+exit status: 0
+/srv/pu/sub/deep/old2.txt
+/srv/pu/sub/deep uid=1000 gid=1000 mode=0775 world-writable=no
+--- smbcacls sub\deep
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x13/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x13/0x001200a9
+--- smbcacls sub\deep\old2.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x10/0x001200a9
+/srv/pu/sub/deep: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000132400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000132400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+/srv/pu/sub/deep: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+/srv/pu/sub/deep/old2.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000102400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000102400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+--- pu: get sub\deep\old2.txt /tmp/pu.txt as usera: yes
+exit status: 0
+getting file \sub\deep\old2.txt of size 5 as /tmp/pu.txt (50000.0 KiloBytes/sec) (average inf KiloBytes/sec)
+--- pu: ls sub\deep\* as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\deep\*
+/srv/pu/#recycle/sub/gone.txt uid=1000 gid=1000 mode=0644 world-writable=no
+/srv/pu/#recycle/sub/gone.txt: (no extended attributes)
+--samba-tool recycle-restore --share pu --item sub/gone.txt
+exit status: 0
+/srv/pu/sub/gone.txt
+/srv/pu/sub/gone.txt uid=1000 gid=1000 mode=0664 world-writable=no
+--- smbcacls sub\gone.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1571942482-2724129038-1413376436-1001:0/0x10/0x001200a9
+/srv/pu/sub/gone.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000102400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000102400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54e9030000
+--- pu: get sub\gone.txt /tmp/pu.txt as usera: yes
+exit status: 0
+getting file \sub\gone.txt of size 14 as /tmp/pu.txt (13.7 KiloBytes/sec) (average 13.7 KiloBytes/sec)
+--- pu: get sub\gone.txt /tmp/pu.txt as userb: yes
+exit status: 0
+getting file \sub\gone.txt of size 14 as /tmp/pu.txt (13.7 KiloBytes/sec) (average 13.7 KiloBytes/sec)
+--- pu: get sub\gone.txt /tmp/pu.txt as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\gone.txt
+=== pu-apply-share-keep ===
+--samba-tool apply-acl --share pu --folder  --rights {"usera":{"right":"write","sid":"S-1-5-21-1571942482-2724129038-1413376436-1000"},"userb":{"right":"write","sid":"S-1-5-21-1571942482-2724129038-1413376436-1001"},"userc":{"right":"read","sid":"S-1-5-21-1571942482-2724129038-1413376436-1002"}} --keep sub
+exit status: 0
+(16/100%)
+(33/100%)
+(50/100%)
+(66/100%)
+(83/100%)
+(100/100%)
+=== pu-mode-variants ===
+exit status: 0
+# file: srv/pu-dacl
+# owner: myUser
+# group: myUser
+user::rwx
+group::rwx
+other::r-x
+default:user::rwx
+default:group::rwx
+default:other::r-x
+
+/srv/pu-dacl: security.NTACL = 0100010000000200010004901c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020074000300000000032400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e803000000032400bf01130001050000000000051500000052f0b15d0ee95ea2b4693e54e903000000032400a900120001050000000000051500000052f0b15d0ee95ea2b4693e54ea030000
+/srv/pu-dacl: system.posix_acl_default = 0200000001000700ffffffff04000700ffffffff20000500ffffffff
+--- pu-ip: put /tmp/local.txt a-new.txt; mkdir a-dir; put /tmp/local.txt a-dir\inner.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \a-new.txt (5.9 kB/s) (average 5.9 kB/s)
+putting file /tmp/local.txt as \a-dir\inner.txt (5.9 kB/s) (average 5.9 kB/s)
+/srv/pu-ip/a-new.txt uid=1000 gid=1000 mode=0666 world-writable=yes
+/srv/pu-ip/a-dir uid=1000 gid=1000 mode=0777 world-writable=yes
+/srv/pu-ip/a-dir/inner.txt uid=1000 gid=1000 mode=0666 world-writable=yes
+--- pu-dacl: put /tmp/local.txt a-new.txt; mkdir a-dir; put /tmp/local.txt a-dir\inner.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \a-new.txt (5.9 kB/s) (average 5.9 kB/s)
+putting file /tmp/local.txt as \a-dir\inner.txt (5.9 kB/s) (average 5.9 kB/s)
+/srv/pu-dacl/a-new.txt uid=1000 gid=1000 mode=0664 world-writable=no
+/srv/pu-dacl/a-dir uid=1000 gid=1000 mode=0775 world-writable=no
+/srv/pu-dacl/a-dir/inner.txt uid=1000 gid=1000 mode=0664 world-writable=no
+--- pu-nosys: put /tmp/local.txt a-new.txt; mkdir a-dir; put /tmp/local.txt a-dir\inner.txt as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \a-new.txt (2.9 kB/s) (average 2.9 kB/s)
+putting file /tmp/local.txt as \a-dir\inner.txt (2.9 kB/s) (average 2.9 kB/s)
+/srv/pu-nosys/a-new.txt uid=1000 gid=1000 mode=0670 world-writable=no
+/srv/pu-nosys/a-dir uid=1000 gid=1000 mode=0770 world-writable=no
+/srv/pu-nosys/a-dir/inner.txt uid=1000 gid=1000 mode=0670 world-writable=no
+# file: srv/pu-dacl/a-dir
+# owner: myUser
+# group: myUser
+user::rwx
+group::rwx
+other::r-x
+default:user::rwx
+default:group::rwx
+default:other::r-x
+
+# file: srv/pu-nosys/a-new.txt
+# owner: myUser
+# group: myUser
+user::rw-
+user:myUser:rw-
+user:usera:rwx
+user:userb:rwx
+user:userc:r-x
+group::---
+group:myUser:---
+mask::rwx
+other::---
+
+# file: srv/pu-nosys/a-dir
+# owner: myUser
+# group: myUser
+user::rwx
+user:myUser:rwx
+user:usera:rwx
+user:userb:rwx
+user:userc:r-x
+group::---
+group:myUser:---
+mask::rwx
+other::---
+default:user::rwx
+default:user:myUser:rwx
+default:user:usera:rwx
+default:user:userb:rwx
+default:user:userc:r-x
+default:group::---
+default:group:myUser:---
+default:mask::rwx
+default:other::---
+
+=== pu-recycle-without-modes ===
+--- pu-rb0: del one.txt as usera: yes
+exit status: 0
+--- pu-rb0: del two.txt as userb: yes
+exit status: 0
+total 16
+drwx------    2 usera    myUser        4096 Nov  4 15:15 #recycle
+drwxrwxr-x    3 myUser   myUser        4096 Nov  4 15:15 .
+drwxr-xr-x    1 root     root          4096 Nov  4 15:15 ..
+/srv/pu-rb0/#recycle:
+total 20
+drwx------    2 usera    myUser        4096 Nov  4 15:15 .
+drwxrwxr-x    3 myUser   myUser        4096 Nov  4 15:15 ..
+-rw-rw-r--    1 myUser   myUser           4 Jan  1  2020 one.txt

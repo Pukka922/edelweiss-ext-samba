@@ -1,0 +1,145 @@
+=== mac-testparm ===
+exit status: 0
+Load smb config files from /etc/samba/smb.conf
+Loaded services file OK.
+Weak crypto is allowed by GnuTLS (e.g. NTLM as a compatibility fallback)
+
+Server role: ROLE_STANDALONE
+
+# Global parameters
+[global]
+	disable netbios = Yes
+	disable spoolss = Yes
+	load printers = No
+	log file = /var/log/samba/log.%m
+	max log size = 0
+	netbios name = CAPTURE
+	printcap name = /dev/null
+	server min protocol = SMB3
+	server role = standalone server
+	server smb transports = 445
+	fruit:delete_empty_adfiles = yes
+	fruit:wipe_intentionally_left_blank_rfork = yes
+	fruit:veto_appledouble = no
+	fruit:posix_rename = yes
+	fruit:metadata = stream
+	fruit:nfs_aces = no
+	fruit:model = MacSamba
+	fruit:aapl = yes
+	idmap config * : backend = tdb
+	printing = bsd
+
+
+[mac]
+	force group = myUser
+	force user = myUser
+	path = /srv/mac
+	valid users = writer
+	vfs objects = catia fruit streams_xattr
+	write list = writer
+=== mac-fs ===
+UNKNOWN
+overlay / overlay rw,relatime,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2351/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/67/fs,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2352/fs,workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2352/work 0 0
+=== mac-put ===
+exit status: 0
+putting file /tmp/local.txt as \f.txt (5.9 kB/s) (average 5.9 kB/s)
+=== mac-stream ===
+exit status: 0
+putting file /tmp/local.txt as \f.txt:mystream (5.9 kB/s) (average 5.9 kB/s)
+exit status: 0
+altname: f.txt
+NT_STATUS_INVALID_DEVICE_REQUEST getting shadow copy data for \f.txt
+create_time:    Wed Nov  4 11:11:29 2026 UTC
+access_time:    Wed Nov  4 11:11:29 2026 UTC
+write_time:     Wed Nov  4 11:11:29 2026 UTC
+change_time:    Wed Nov  4 11:11:29 2026 UTC
+attributes: A (20)
+stream: [:mystream:$DATA], 6 bytes
+stream: [::$DATA], 6 bytes
+/srv/mac/f.txt: user.DOSATTRIB = 00000500050000001100000020000000e5cf2f3d4d6cdd01
+/srv/mac/f.txt: user.DosStream.mystream:$DATA = 6c6f63616c0a00
+=== mac-resource-fork ===
+exit status: 0
+putting file /tmp/local.txt as \f.txt:AFP_Resource (5.9 kB/s) (average 5.9 kB/s)
+exit status: 0
+altname: f.txt
+NT_STATUS_INVALID_DEVICE_REQUEST getting shadow copy data for \f.txt
+create_time:    Wed Nov  4 11:11:29 2026 UTC
+access_time:    Wed Nov  4 11:11:29 2026 UTC
+write_time:     Wed Nov  4 11:11:29 2026 UTC
+change_time:    Wed Nov  4 11:11:29 2026 UTC
+attributes: A (20)
+stream: [:mystream:$DATA], 6 bytes
+stream: [::$DATA], 6 bytes
+stream: [:AFP_Resource:$DATA], 6 bytes
+total 20
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:11 ..
+-rwxr--r--    1 myUser   myUser          88 Nov  4 11:11 ._f.txt
+-rwxr--r--    1 myUser   myUser           6 Nov  4 11:11 f.txt
+/srv/mac/f.txt: user.DOSATTRIB = 00000500050000001100000020000000e5cf2f3d4d6cdd01
+/srv/mac/f.txt: user.DosStream.mystream:$DATA = 6c6f63616c0a00
+=== mac-stream-3k ===
+exit status: 0
+putting file /tmp/stream-3k.bin as \f.txt:s3k (2999.7 kB/s) (average 3000.0 kB/s)
+exit status: 0
+altname: f.txt
+NT_STATUS_INVALID_DEVICE_REQUEST getting shadow copy data for \f.txt
+create_time:    Wed Nov  4 11:11:29 2026 UTC
+access_time:    Wed Nov  4 11:11:29 2026 UTC
+write_time:     Wed Nov  4 11:11:29 2026 UTC
+change_time:    Wed Nov  4 11:11:29 2026 UTC
+attributes: A (20)
+stream: [:s3k:$DATA], 3072 bytes
+stream: [:mystream:$DATA], 6 bytes
+stream: [::$DATA], 6 bytes
+stream: [:AFP_Resource:$DATA], 6 bytes
+=== mac-stream-8k ===
+exit status: 1
+cli_push returned NT_STATUS_DISK_FULL
+putting file /tmp/stream-8k.bin as \f.txt:s8k (1600.0 kB/s) (average 1600.0 kB/s)
+exit status: 0
+altname: f.txt
+NT_STATUS_INVALID_DEVICE_REQUEST getting shadow copy data for \f.txt
+create_time:    Wed Nov  4 11:11:29 2026 UTC
+access_time:    Wed Nov  4 11:11:29 2026 UTC
+write_time:     Wed Nov  4 11:11:29 2026 UTC
+change_time:    Wed Nov  4 11:11:29 2026 UTC
+attributes: A (20)
+stream: [:s3k:$DATA], 3072 bytes
+stream: [:s8k:$DATA], 0 bytes
+stream: [:mystream:$DATA], 6 bytes
+stream: [::$DATA], 6 bytes
+stream: [:AFP_Resource:$DATA], 6 bytes
+=== mac-stream-70k ===
+exit status: 1
+cli_push returned NT_STATUS_FILE_SYSTEM_LIMITATION
+putting file /tmp/stream-70k.bin as \f.txt:s70k (69993.2 kB/s) (average 70000.0 kB/s)
+exit status: 0
+altname: f.txt
+NT_STATUS_INVALID_DEVICE_REQUEST getting shadow copy data for \f.txt
+create_time:    Wed Nov  4 11:11:29 2026 UTC
+access_time:    Wed Nov  4 11:11:29 2026 UTC
+write_time:     Wed Nov  4 11:11:29 2026 UTC
+change_time:    Wed Nov  4 11:11:29 2026 UTC
+attributes: A (20)
+stream: [:s3k:$DATA], 3072 bytes
+stream: [:s8k:$DATA], 0 bytes
+stream: [:s70k:$DATA], 0 bytes
+stream: [:mystream:$DATA], 6 bytes
+stream: [::$DATA], 6 bytes
+stream: [:AFP_Resource:$DATA], 6 bytes
+=== mac-after ===
+total 20
+drwxr-xr-x    2 myUser   myUser        4096 Nov  4 11:11 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:11 ..
+-rwxr--r--    1 myUser   myUser          88 Nov  4 11:11 ._f.txt
+-rwxr--r--    1 myUser   myUser           6 Nov  4 11:11 f.txt
+/srv/mac/f.txt: user.DOSATTRIB = 00000500050000001100000020000000e5cf2f3d4d6cdd01
+/srv/mac/f.txt: user.DosStream.mystream:$DATA = 6c6f63616c0a00
+/srv/mac/f.txt: user.DosStream.s3k:$DATA = 3073 bytes, the first 32: 7373737373737373737373737373737373737373737373737373737373737373
+/srv/mac/f.txt: user.DosStream.s70k:$DATA = 00
+/srv/mac/f.txt: user.DosStream.s8k:$DATA = 00
+exit status: 0
+getting file \f.txt of size 6 as /tmp/mac-f.txt (5.9 KiloBytes/sec) (average 5.9 KiloBytes/sec)
+local

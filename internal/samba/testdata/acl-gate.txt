@@ -1,0 +1,179 @@
+=== acl-recycle-writer-only ===
+--- usera: cd dir; del one.txt
+exit status: 0
+/srv/acl-rb/#recycle:
+total 12
+drwx------    3 myUser   myUser        4096 Nov  4 11:12 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:12 ..
+drwx------    2 myUser   myUser        4096 Nov  4 11:12 dir
+
+/srv/acl-rb/#recycle/dir:
+total 12
+drwx------    2 myUser   myUser        4096 Nov  4 11:12 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:12 ..
+-rw-r--r--    1 myUser   myUser           4 Jan  1  2020 one.txt
+/srv/acl-rb/#recycle: 104 bytes
+/srv/acl-rb/#recycle/dir: 104 bytes
+/srv/acl-rb/#recycle/dir/one.txt: 104 bytes
+--- userb: ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:12:59 2026
+
+		1055762868 blocks of size 1024. 980146256 blocks available
+--- userb: ls #recycle\*
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \#recycle\*
+--- usera: ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:12:59 2026
+
+		1055762868 blocks of size 1024. 980146256 blocks available
+--- usera: ls #recycle\*
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \#recycle\*
+--- usera: cd dir; del two.txt
+exit status: 0
+/srv/acl-rb/#recycle:
+total 20
+drwx------    3 myUser   myUser        4096 Nov  4 11:12 .
+drwxr-xr-x    4 myUser   myUser        4096 Nov  4 11:12 ..
+drwx------    2 myUser   myUser        4096 Nov  4 11:13 dir
+
+/srv/acl-rb/#recycle/dir:
+total 28
+drwx------    2 myUser   myUser        4096 Nov  4 11:13 .
+drwx------    3 myUser   myUser        4096 Nov  4 11:12 ..
+-rw-r--r--    1 myUser   myUser           4 Jan  1  2020 one.txt
+-rw-r--r--    1 myUser   myUser           4 Jan  1  2020 two.txt
+/srv/acl-rb/#recycle/dir/two.txt: (no extended attributes)
+=== acl-recycle-with-owner ===
+/srv/acl-rb/#recycle: 128 bytes
+/srv/acl-rb/#recycle/dir: 128 bytes
+/srv/acl-rb/#recycle/dir/one.txt: 128 bytes
+/srv/acl-rb/#recycle/dir/two.txt: 128 bytes
+--- userb: ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:13:00 2026
+  #recycle                            D        0  Wed Nov  4 11:12:59 2026
+
+		1055762868 blocks of size 1024. 980146248 blocks available
+--- userb: ls #recycle\*
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:13:00 2026
+
+		1055762868 blocks of size 1024. 980146248 blocks available
+--- usera: ls
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:13:00 2026
+  #recycle                            D        0  Wed Nov  4 11:12:59 2026
+
+		1055762868 blocks of size 1024. 980146248 blocks available
+--- usera: ls #recycle\*
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:59 2026
+  ..                                  D        0  Wed Nov  4 11:12:59 2026
+  dir                                 D        0  Wed Nov  4 11:13:00 2026
+
+		1055762868 blocks of size 1024. 980146248 blocks available
+=== acl-gate ===
+method a: smbd reads the ACL back; per-user NT ACLs under force user: no; usera, userb and userc got the same: yes
+method b: smbd reads the ACL back; per-user NT ACLs under force user: no; usera, userb and userc got the same: yes
+method c: smbd reads the ACL back; per-user NT ACLs under force user: no; usera, userb and userc got the same: yes
+with an ACE of full rights for the folder owner S-1-22-1-1000: all three list, read and write: yes (smbd checks the token of the user it works as, not the session user's)
+without force user (force group, inherit owner = unix only, a group-writable copy of the tree): per-user: yes
+Gate: per-user NT ACLs under force user: no
+=== acl-preexec-log ===
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=usera][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userb][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+[acl][session=userc][forced=myUser][group=myUser]
+=== acl-parameters ===
+	acl claims evaluation = AD DC only
+	kdc force enable rc4 weak session keys = No
+	acl allow execute always = No
+	acl check permissions = Yes
+	acl flag inherited canonicalization = Yes
+	acl group control = No
+	acl map full control = Yes
+	smbd force process locks = No
+	force create mode = 0000
+	force directory mode = 0000
+	force group = 
+	force printername = No
+	force unknown acl user = No
+	force user = 
+	inherit acls = No
+	inherit owner = no
+	inherit permissions = No
+	map acl inherit = No
+	nt acl support = Yes
+	acl_xattr:ignore system acls = yes
+	force group = myUser
+	force user = myUser
+	acl_xattr:ignore system acls = yes

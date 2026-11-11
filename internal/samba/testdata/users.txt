@@ -1,0 +1,174 @@
+=== adduser-u1 ===
+exit status: 0
+=== accounts-u1 ===
+/etc/passwd:myUser:x:1000:1000::/home/myUser:/bin/sh
+/etc/passwd:u1:x:1001:103::/home/u1:/sbin/nologin
+/etc/shadow:myUser:!:20761:0:99999:7:::
+/etc/shadow:u1:!:20761:0:99999:7:::
+/etc/group:edelweiss-samba:x:103:u1
+/etc/group:myUser:x:1000:
+ls: /home/u1: No such file or directory
+drwxr-sr-x    2 myUser   myUser        4096 Nov  4 11:10 /home/myUser
+lrwxrwxrwx    1 root     root            12 Sep 17 17:32 /sbin/nologin -> /bin/busybox
+/sbin/nologin symlink target is owned by busybox-1.37.0-r31
+This account is not available
+nologin: exit status 1
+=== pdbedit-a ===
+exit status: 0
+Unix username:        u1
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-600338811-2077806265-2493298943-1000
+Primary Group SID:    S-1-5-21-600338811-2077806265-2493298943-513
+Full Name:            
+Home Directory:       \\CAPTURE\u1
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\u1\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:11:03 UTC
+Password can change:  Wed, 04 Nov 2026 11:11:03 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+=== pdbedit-L ===
+exit status: 0
+u1:1001:
+=== pdbedit-L-w ===
+exit status: 0
+u1:1001:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:7CE73C779971B9FC8FC82A3FD833969B:[U          ]:LCT-6AEB12C7:
+=== login-u1 ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:10:49 2026
+  ..                                  D        0  Wed Nov  4 11:10:49 2026
+
+		1055762868 blocks of size 1024. 980211164 blocks available
+=== smbpasswd-s ===
+exit status: 0
+=== login-u1-after-smbpasswd ===
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:10:49 2026
+  ..                                  D        0  Wed Nov  4 11:10:49 2026
+
+		1055762868 blocks of size 1024. 980211164 blocks available
+=== smbpasswd-d ===
+exit status: 0
+Disabled user u1.
+Unix username:        u1
+Account Flags:        [DU         ]
+exit status: 1
+session setup failed: NT_STATUS_ACCOUNT_DISABLED
+=== smbpasswd-e ===
+exit status: 0
+Enabled user u1.
+Unix username:        u1
+Account Flags:        [U          ]
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:10:49 2026
+  ..                                  D        0  Wed Nov  4 11:10:49 2026
+
+		1055762868 blocks of size 1024. 980211164 blocks available
+=== pdbedit-x ===
+exit status: 0
+exit status: 0
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE
+u1:x:1001:103::/home/u1:/sbin/nologin
+=== pdbedit-a-again ===
+exit status: 0
+Unix username:        u1
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-600338811-2077806265-2493298943-1001
+Primary Group SID:    S-1-5-21-600338811-2077806265-2493298943-513
+Full Name:            
+Home Directory:       \\CAPTURE\u1
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\u1\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:11:04 UTC
+Password can change:  Wed, 04 Nov 2026 11:11:04 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+=== pdbedit-a-exists ===
+exit status: 0
+Unix username:        u1
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-600338811-2077806265-2493298943-1001
+Primary Group SID:    S-1-5-21-600338811-2077806265-2493298943-513
+Full Name:            
+Home Directory:       \\CAPTURE\u1
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\u1\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:11:04 UTC
+Password can change:  Wed, 04 Nov 2026 11:11:04 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:10:49 2026
+  ..                                  D        0  Wed Nov  4 11:10:49 2026
+
+		1055762868 blocks of size 1024. 980211156 blocks available
+=== odd-password ===
+exit status: 0
+Unix username:        odd
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-600338811-2077806265-2493298943-1002
+Primary Group SID:    S-1-5-21-600338811-2077806265-2493298943-513
+Full Name:            
+Home Directory:       \\CAPTURE\odd
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\odd\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:11:04 UTC
+Password can change:  Wed, 04 Nov 2026 11:11:04 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:10:49 2026
+  ..                                  D        0  Wed Nov  4 11:10:49 2026
+
+		1055762868 blocks of size 1024. 980211148 blocks available
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE

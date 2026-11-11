@@ -1,0 +1,129 @@
+=== sys-class-net ===
+eth0 -> ../../devices/virtual/net/eth0 type=1 flags=0x1003 operstate=up ifindex=2 iflink=1645
+lo -> ../../devices/virtual/net/lo type=772 flags=0x9 operstate=unknown ifindex=1 iflink=1
+=== ip-addr ===
+1: lo    inet 127.0.0.1/8 scope host lo\       valid_lft forever preferred_lft forever
+1: lo    inet6 ::1/128 scope host \       valid_lft forever preferred_lft forever
+2: eth0    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0\       valid_lft forever preferred_lft forever
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0@if1645: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue state UP \    link/ether ca:3d:25:5c:7d:bc brd ff:ff:ff:ff:ff:ff
+=== bind-lo-eth0 ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+listens on 172.17.0.2:445: true, 100ms after the restart
+wsdd: exit status: 0
+ * status: started
+tcp        0      0 172.17.0.2:445          0.0.0.0:*               LISTEN      
+tcp        0      0 127.0.0.1:445           0.0.0.0:*               LISTEN      
+tcp        0      0 ::1:445                 :::*                    LISTEN      
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210580 blocks available
+=== bind-lo-reload ===
+exit status: 0
+tcp        0      0 172.17.0.2:445          0.0.0.0:*               LISTEN      
+tcp        0      0 127.0.0.1:445           0.0.0.0:*               LISTEN      
+tcp        0      0 ::1:445                 :::*                    LISTEN      
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210576 blocks available
+=== bind-lo-restart ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+listens on 127.0.0.1:445: true, 100ms after the restart
+wsdd: exit status: 0
+ * status: started
+tcp        0      0 127.0.0.1:445           0.0.0.0:*               LISTEN      
+tcp        0      0 ::1:445                 :::*                    LISTEN      
+exit status: 1
+do_connect: Connection to 172.17.0.2 failed (Error NT_STATUS_CONNECTION_REFUSED)
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210564 blocks available
+=== hosts-allow-loopback ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+listens on 172.17.0.2:445: true, 100ms after the restart
+wsdd: exit status: 0
+ * status: started
+exit status: 1
+Protocol negotiation to server 172.17.0.2 (for a protocol between SMB2_02 and SMB3) failed: NT_STATUS_INVALID_NETWORK_RESPONSE
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210544 blocks available
+[2026/11/04 11:11:38.958886,  0] ../../lib/util/access.c:372(allow_access)
+  Denied connection from 172.17.0.2 (172.17.0.2)
+[2026/11/04 11:11:39.011116,  0] ../../lib/util/access.c:372(allow_access)
+  Denied connection from 172.17.0.2 (172.17.0.2)
+=== hosts-allow-private ===
+exit status: 0
+Load smb config files from /etc/samba/smb.conf
+Loaded services file OK.
+Weak crypto is allowed by GnuTLS (e.g. NTLM as a compatibility fallback)
+
+127.0.0.1 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7 fe80::/10
+exit status: 0
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210540 blocks available
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:29 2026
+  ..                                  D        0  Wed Nov  4 11:11:29 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+  open.txt                            N        5  Wed Nov  4 11:11:29 2026
+
+		1055762868 blocks of size 1024. 980210540 blocks available
+=== bind-default ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+listens on 127.0.0.1:445: true, 100ms after the restart
+wsdd: exit status: 0
+ * status: started
+tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      
+tcp        0      0 :::445                  :::*                    LISTEN      

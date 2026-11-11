@@ -1,0 +1,11 @@
+=== xattr-privilege ===
+/srv/probe/xattr-probe: setxattr security.NTACL, 16 bytes: operation not permitted (EPERM)
+/srv/probe/xattr-probe: setxattr security.NTACL, 8192 bytes: operation not permitted (EPERM)
+/srv/probe/xattr-probe: setxattr user.edelweiss-probe, 16 bytes: ok
+/srv/probe/xattr-probe: setxattr user.edelweiss-probe, 8192 bytes: no space left on device (ENOSPC)
+CapEff:	00000000a80425fb
+/dev/shm/xattr-probe: setxattr security.NTACL, 16 bytes: operation not permitted (EPERM)
+/dev/shm/xattr-probe: setxattr security.NTACL, 8192 bytes: operation not permitted (EPERM)
+/dev/shm/xattr-probe: setxattr user.edelweiss-probe, 16 bytes: ok
+/dev/shm/xattr-probe: setxattr user.edelweiss-probe, 8192 bytes: ok
+CapEff:	00000000a80425fb

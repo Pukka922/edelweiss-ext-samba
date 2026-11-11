@@ -1,0 +1,96 @@
+---------------
+Unix username:        usera
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-1989869701-1206112869-539877095-1000
+Primary Group SID:    S-1-5-21-1989869701-1206112869-539877095-513
+Full Name:            
+Home Directory:       \\CAPTURE\usera
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\usera\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:12:49 UTC
+Password can change:  Wed, 04 Nov 2026 11:12:49 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+---------------
+Unix username:        userc
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-1989869701-1206112869-539877095-1002
+Primary Group SID:    S-1-5-21-1989869701-1206112869-539877095-513
+Full Name:            
+Home Directory:       \\CAPTURE\userc
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\userc\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:12:49 UTC
+Password can change:  Wed, 04 Nov 2026 11:12:49 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+---------------
+Unix username:        userb
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-1989869701-1206112869-539877095-1001
+Primary Group SID:    S-1-5-21-1989869701-1206112869-539877095-513
+Full Name:            
+Home Directory:       \\CAPTURE\userb
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\userb\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:12:49 UTC
+Password can change:  Wed, 04 Nov 2026 11:12:49 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+---------------
+Unix username:        edelweiss-acl
+NT username:          
+Account Flags:        [U          ]
+User SID:             S-1-5-21-1989869701-1206112869-539877095-1003
+Primary Group SID:    S-1-5-21-1989869701-1206112869-539877095-513
+Full Name:            
+Home Directory:       \\CAPTURE\edelweiss-acl
+HomeDir Drive:        
+Logon Script:         
+Profile Path:         \\CAPTURE\edelweiss-acl\profile
+Domain:               CAPTURE
+Account desc:         
+Workstations:         
+Munged dial:          
+Logon time:           0
+Logoff time:          Wed, 06 Feb 2036 15:06:39 UTC
+Kickoff time:         Wed, 06 Feb 2036 15:06:39 UTC
+Password last set:    Wed, 04 Nov 2026 11:12:49 UTC
+Password can change:  Wed, 04 Nov 2026 11:12:49 UTC
+Password must change: never
+Last bad password   : 0
+Bad password count  : 0
+Logon hours         : FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF

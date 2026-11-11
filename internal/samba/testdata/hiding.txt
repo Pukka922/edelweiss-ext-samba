@@ -1,0 +1,132 @@
+=== hide-lists-only-reader ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	h-open          Disk      
+	h-lists         Disk      
+	h-names         Disk      
+	h-qualified     Disk      
+	h-sids          Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== hide-lists-only-outsider ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	h-open          Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== hide-lists-only-writer ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	h-open          Disk      
+	h-lists         Disk      
+	h-names         Disk      
+	h-qualified     Disk      
+	h-sids          Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== sharesec-view-default ===
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-1-0:ALLOWED/0x0/FULL
+=== sharesec-names ===
+exit status: 255
+ACE 'reader:ALLOWED/0/READ': failed to convert 'reader' to SID
+Failed to parse acl
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-1-0:ALLOWED/0x0/FULL
+=== sharesec-qualified ===
+exit status: 255
+ACE 'CAPTURE\reader:ALLOWED/0/READ': failed to convert 'CAPTURE\reader' to SID
+Failed to parse acl
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-1-0:ALLOWED/0x0/FULL
+=== sharesec-sids ===
+exit status: 0
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-5-21-600338811-2077806265-2493298943-1003:ALLOWED/0x0/READ
+ACL:S-1-5-21-600338811-2077806265-2493298943-1005:ALLOWED/0x0/CHANGE
+=== sharesec-open ===
+exit status: 0
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-5-21-600338811-2077806265-2493298943-1003:ALLOWED/0x0/READ
+ACL:S-1-5-21-600338811-2077806265-2493298943-1005:ALLOWED/0x0/CHANGE
+=== hide-acls-reader ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	h-open          Disk      
+	h-lists         Disk      
+	h-names         Disk      
+	h-qualified     Disk      
+	h-sids          Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== hide-acls-outsider ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== hide-acls-writer ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	h-open          Disk      
+	h-lists         Disk      
+	h-names         Disk      
+	h-qualified     Disk      
+	h-sids          Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== hide-connect-open-outsider ===
+exit status: 1
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== hide-connect-hidden-writer ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:07 2026
+  ..                                  D        0  Wed Nov  4 11:11:07 2026
+
+		1055762868 blocks of size 1024. 980210772 blocks available
+=== share-acl-narrows ===
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \w.txt
+=== sharesec-delete ===
+exit status: 0
+exit status: 0
+REVISION:1
+CONTROL:SR|DP
+OWNER:
+GROUP:
+ACL:S-1-1-0:ALLOWED/0x0/FULL

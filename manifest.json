@@ -1,0 +1,11 @@
+{
+  "id": "samba",
+  "version": "0.0.0-dev",
+  "apiVersion": 1,
+  "name": { "de": "Freigaben", "en": "Shares" },
+  "description": { "de": "Samba-Freigaben wie bei einem NAS einrichten", "en": "Set up Samba shares like on a NAS" },
+  "menu": { "section": "system", "order": 50, "icon": "icon.svg" },
+  "ui": { "entry": "index.js", "styles": ["style.css"], "locales": "locales" },
+  "requiresAdmin": false,
+  "requires": { "apk": ["samba", "avahi", "dbus", "wsdd"] }
+}

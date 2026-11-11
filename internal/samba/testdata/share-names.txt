@@ -1,0 +1,74 @@
+=== share-names-testparm ===
+exit status: 0
+Load smb config files from /tmp/names.conf
+Loaded services file OK.
+Weak crypto is allowed by GnuTLS (e.g. NTLM as a compatibility fallback)
+
+Server role: ROLE_STANDALONE
+
+# Global parameters
+[global]
+	disable netbios = Yes
+	disable spoolss = Yes
+	load printers = No
+	log file = /var/log/samba/log.%m
+	max log size = 0
+	netbios name = CAPTURE
+	printcap name = /dev/null
+	server min protocol = SMB3
+	server role = standalone server
+	server smb transports = 445
+	idmap config * : backend = tdb
+	force group = myUser
+	force user = myUser
+	path = /srv/names/9
+	printing = bsd
+	valid users = writer
+
+
+[My Share]
+	path = /srv/names/0
+
+
+[Fotos ä]
+	path = /srv/names/1
+
+
+[semi;colon]
+	path = /srv/names/2
+
+
+[it's]
+	path = /srv/names/3
+
+
+[dollar$]
+	path = /srv/names/4
+
+
+[x=y]
+	path = /srv/names/5
+
+
+[a/b]
+	path = /srv/names/6
+
+
+[a\b]
+	path = /srv/names/7
+
+
+[#hash]
+	path = /srv/names/8
+
+
+[Homes]
+	path = /srv/names/10
+
+
+[IPC$]
+	path = /srv/names/11
+
+
+[nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn]
+	path = /srv/names/12

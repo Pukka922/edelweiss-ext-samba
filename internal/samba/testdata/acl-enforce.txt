@@ -1,0 +1,525 @@
+=== acl-enforce-a ===
+--- list-root as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146696 blocks available
+--- list-sub as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\a-a.txt
+--- mkdir as usera: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\a-a-dir
+--- list-root as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146696 blocks available
+--- list-sub as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\b-a.txt
+--- mkdir as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\b-a-dir
+--- list-root as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146696 blocks available
+--- list-sub as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\c-a.txt
+--- mkdir as userc: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\c-a-dir
+summary:
+usera: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+userb: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+userc: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+per-user NT ACLs (a, share acl): no
+=== acl-enforce-a-new ===
+=== acl-enforce-b ===
+--- list-root as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146512 blocks available
+--- list-sub as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as usera: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-a.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\a-b.txt
+--- mkdir as usera: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\a-b-dir
+--- list-root as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146508 blocks available
+--- list-sub as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userb: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-b.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\b-b.txt
+--- mkdir as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\b-b-dir
+--- list-root as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146504 blocks available
+--- list-sub as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userc: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-c.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\c-b.txt
+--- mkdir as userc: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\c-b-dir
+summary:
+usera: sees sub in the root: no, lists sub: no, reads: yes, writes: no, mkdir: no
+userb: sees sub in the root: no, lists sub: no, reads: yes, writes: no, mkdir: no
+userc: sees sub in the root: no, lists sub: no, reads: yes, writes: no, mkdir: no
+per-user NT ACLs (b, share acl): no
+=== acl-enforce-b-new ===
+=== acl-enforce-c ===
+--- list-root as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146476 blocks available
+--- list-sub as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as usera: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\a-c.txt
+--- mkdir as usera: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\a-c-dir
+--- list-root as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146476 blocks available
+--- list-sub as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\b-c.txt
+--- mkdir as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\b-c-dir
+--- list-root as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146476 blocks available
+--- list-sub as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\c-c.txt
+--- mkdir as userc: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\c-c-dir
+summary:
+usera: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+userb: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+userc: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+per-user NT ACLs (c, share acl): no
+=== acl-enforce-c-new ===
+=== acl-owner-ace-set ===
+/srv/acl/sub: 164 bytes
+/srv/acl/sub/deep: 164 bytes
+/srv/acl/sub/deep/old2.txt: 164 bytes
+/srv/acl/sub/old.txt: 164 bytes
+exit status: 0
+REVISION:1
+CONTROL:0x9004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+ACL:S-1-22-1-1000:0/0x3/0x001f01ff
+=== acl-enforce-owner-ace ===
+--- list-root as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  sub                                 D        0  Wed Nov  4 11:12:49 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146452 blocks available
+--- list-sub as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  deep                                D        0  Wed Nov  4 11:12:49 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146452 blocks available
+--- read as usera: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-a.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\a-owner-ace.txt (2.9 kB/s) (average 2.9 kB/s)
+--- mkdir as usera: yes
+exit status: 0
+--- list-root as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  sub                                 D        0  Wed Nov  4 11:12:56 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146400 blocks available
+--- list-sub as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  a-owner-ace-dir                     D        0  Wed Nov  4 11:12:56 2026
+  a-owner-ace.txt                     A        6  Wed Nov  4 11:12:56 2026
+  deep                                D        0  Wed Nov  4 11:12:49 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146400 blocks available
+--- read as userb: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-b.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as userb: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\b-owner-ace.txt (5.9 kB/s) (average 5.9 kB/s)
+--- mkdir as userb: yes
+exit status: 0
+--- list-root as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:49 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  sub                                 D        0  Wed Nov  4 11:12:56 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146392 blocks available
+--- list-sub as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:49 2026
+  a-owner-ace-dir                     D        0  Wed Nov  4 11:12:56 2026
+  b-owner-ace.txt                     A        6  Wed Nov  4 11:12:56 2026
+  b-owner-ace-dir                     D        0  Wed Nov  4 11:12:56 2026
+  a-owner-ace.txt                     A        6  Wed Nov  4 11:12:56 2026
+  deep                                D        0  Wed Nov  4 11:12:49 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146392 blocks available
+--- read as userc: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-c.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as userc: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\c-owner-ace.txt (5.9 kB/s) (average 5.9 kB/s)
+--- mkdir as userc: yes
+exit status: 0
+summary:
+usera: sees sub in the root: yes, lists sub: yes, reads: yes, writes: yes, mkdir: yes
+userb: sees sub in the root: yes, lists sub: yes, reads: yes, writes: yes, mkdir: yes
+userc: sees sub in the root: yes, lists sub: yes, reads: yes, writes: yes, mkdir: yes
+per-user NT ACLs (owner-ace, share acl): no
+=== acl-enforce-owner-ace-new ===
+exit status: 0
+/srv/acl/sub/a-owner-ace.txt myUser:myUser 766 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/a-owner-ace.txt: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000002400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000002400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000001800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/a-owner-ace.txt: user.DOSATTRIB = 00000500050000001100000020000000f8a84b714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x0/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x0/0x001200a9
+ACL:S-1-22-1-1000:0/0x0/0x001f01ff
+exit status: 0
+/srv/acl/sub/a-owner-ace-dir myUser:myUser 777 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/a-owner-ace-dir: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000032400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000032400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000031800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/a-owner-ace-dir: user.DOSATTRIB = 00000500050000001100000010000000f8fb52714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+ACL:S-1-22-1-1000:0/0x3/0x001f01ff
+exit status: 0
+/srv/acl/sub/b-owner-ace.txt myUser:myUser 766 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/b-owner-ace.txt: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000002400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000002400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000001800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/b-owner-ace.txt: user.DOSATTRIB = 00000500050000001100000020000000790f6f714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x0/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x0/0x001200a9
+ACL:S-1-22-1-1000:0/0x0/0x001f01ff
+exit status: 0
+/srv/acl/sub/b-owner-ace-dir myUser:myUser 777 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/b-owner-ace-dir: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000032400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000032400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000031800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/b-owner-ace-dir: user.DOSATTRIB = 00000500050000001100000010000000796276714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+ACL:S-1-22-1-1000:0/0x3/0x001f01ff
+exit status: 0
+/srv/acl/sub/c-owner-ace.txt myUser:myUser 766 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/c-owner-ace.txt: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000002400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000002400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000001800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/c-owner-ace.txt: user.DOSATTRIB = 000005000500000011000000200000007aae93714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x0/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x0/0x001200a9
+ACL:S-1-22-1-1000:0/0x0/0x001f01ff
+exit status: 0
+/srv/acl/sub/c-owner-ace-dir myUser:myUser 777 atime=1793790776 mtime=1793790776 ctime=1793790776
+/srv/acl/sub/c-owner-ace-dir: security.NTACL = 03000300000002000400020001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100048064000000740000000000000084000000010200000000001601000000e8030000010200000000001602000000e8030000020068000300000000032400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000032400a900120001050000000000051500000085009b7665d2e347e7de2d20e903000000031800ff011f00010200000000001601000000e8030000
+/srv/acl/sub/c-owner-ace-dir: user.DOSATTRIB = 000005000500000011000000100000003a659a714d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+ACL:S-1-22-1-1000:0/0x3/0x001f01ff
+=== acl-owner-ace-reset ===
+removed security.NTACL below /srv/acl
+=== acl-g-set ===
+/srv/acl-g/sub: 140 bytes
+/srv/acl-g/sub/deep: 140 bytes
+/srv/acl-g/sub/deep/old2.txt: 140 bytes
+/srv/acl-g/sub/old.txt: 140 bytes
+=== acl-g-readback ===
+--- smbcacls acl-g
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-22-1-1000:0/0x0/0x001f01ff
+ACL:S-1-22-2-1000:0/0x0/0x001201bf
+ACL:S-1-1-0:0/0x0/0x001200a9
+ACL:S-1-5-18:0/0x0/0x001f01ff
+--- smbcacls acl-g\sub
+exit status: 0
+REVISION:1
+CONTROL:0x9004
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+--- smbcacls acl-g\sub\old.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x10/0x001200a9
+--- smbcacls acl-g\sub\deep
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x13/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x13/0x001200a9
+--- smbcacls acl-g\sub\deep\old2.txt
+exit status: 0
+REVISION:1
+CONTROL:0x8404
+OWNER:S-1-22-1-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x10/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x10/0x001200a9
+/srv/acl-g: (no extended attributes)
+/srv/acl-g/sub: security.NTACL = 0100010000000200010004901c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000032400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000032400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+/srv/acl-g/sub/old.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000102400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000102400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+/srv/acl-g/sub/deep: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000132400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000132400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+/srv/acl-g/sub/deep/old2.txt: security.NTACL = 0100010000000200010004841c0000002c000000000000003c000000010200000000001601000000e8030000010200000000001602000000e8030000020050000200000000102400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000102400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+=== acl-enforce-g ===
+--- list-root as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:56 2026
+  sub                                 D        0  Wed Nov  4 11:12:56 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146324 blocks available
+--- list-sub as usera: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:56 2026
+  deep                                D        0  Wed Nov  4 11:12:56 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146324 blocks available
+--- read as usera: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-a.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as usera: yes
+exit status: 0
+putting file /tmp/local.txt as \sub\a-g.txt (5.9 kB/s) (average 5.9 kB/s)
+--- mkdir as usera: yes
+exit status: 0
+--- list-root as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:56 2026
+  sub                                 D        0  Wed Nov  4 11:12:58 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146308 blocks available
+--- list-sub as userb: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:58 2026
+  ..                                  D        0  Wed Nov  4 11:12:56 2026
+  a-g.txt                             A        6  Wed Nov  4 11:12:58 2026
+  a-g-dir                             D        0  Wed Nov  4 11:12:58 2026
+  deep                                D        0  Wed Nov  4 11:12:56 2026
+  old.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146308 blocks available
+--- read as userb: yes
+exit status: 0
+getting file \sub\old.txt of size 4 as /tmp/acl-b.txt (3.9 KiloBytes/sec) (average 3.9 KiloBytes/sec)
+--- write as userb: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\b-g.txt
+--- mkdir as userb: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\b-g-dir
+--- list-root as userc: yes
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:12:56 2026
+  ..                                  D        0  Wed Nov  4 11:12:56 2026
+  top.txt                             N        4  Wed Jan  1 00:00:00 2020
+
+		1055762868 blocks of size 1024. 980146308 blocks available
+--- list-sub as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED listing \sub\*
+--- read as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\old.txt
+--- write as userc: no
+exit status: 1
+NT_STATUS_ACCESS_DENIED opening remote file \sub\c-g.txt
+--- mkdir as userc: no
+exit status: 0
+NT_STATUS_ACCESS_DENIED making remote directory \sub\c-g-dir
+summary:
+usera: sees sub in the root: yes, lists sub: yes, reads: yes, writes: yes, mkdir: yes
+userb: sees sub in the root: yes, lists sub: yes, reads: yes, writes: no, mkdir: no
+userc: sees sub in the root: no, lists sub: no, reads: no, writes: no, mkdir: no
+per-user NT ACLs (g, share acl-g): yes
+=== acl-enforce-g-new ===
+exit status: 0
+/srv/acl-g/sub/a-g.txt myUser:myUser 766 atime=1793790778 mtime=1793790778 ctime=1793790778
+/srv/acl-g/sub/a-g.txt: security.NTACL = 0300030000000200040002000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010004806400000080000000000000009000000001050000000000051500000085009b7665d2e347e7de2d20e8030000010200000000001602000000e8030000020050000200000000002400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000002400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+/srv/acl-g/sub/a-g.txt: user.DOSATTRIB = 00000500050000001100000020000000ff929c724d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-5-21-1989869701-1206112869-539877095-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x0/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x0/0x001200a9
+exit status: 0
+/srv/acl-g/sub/a-g-dir myUser:myUser 777 atime=1793790778 mtime=1793790778 ctime=1793790778
+/srv/acl-g/sub/a-g-dir: security.NTACL = 0300030000000200040002000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010004806400000080000000000000009000000001050000000000051500000085009b7665d2e347e7de2d20e8030000010200000000001602000000e8030000020050000200000000032400bf01130001050000000000051500000085009b7665d2e347e7de2d20e803000000032400a900120001050000000000051500000085009b7665d2e347e7de2d20e9030000
+/srv/acl-g/sub/a-g-dir: user.DOSATTRIB = 00000500050000001100000010000000bf49a3724d6cdd01
+exit status: 0
+REVISION:1
+CONTROL:0x8004
+OWNER:S-1-5-21-1989869701-1206112869-539877095-1000
+GROUP:S-1-22-2-1000
+ACL:S-1-5-21-1989869701-1206112869-539877095-1000:0/0x3/0x001301bf
+ACL:S-1-5-21-1989869701-1206112869-539877095-1001:0/0x3/0x001200a9
+=== acl-g-stats ===
+/srv/acl-g myUser:myUser 775 mtime=1793790776
+/srv/acl-g/sub myUser:myUser 775 mtime=1793790778
+/srv/acl-g/sub/a-g-dir myUser:myUser 777 mtime=1793790778
+/srv/acl-g/sub/a-g.txt myUser:myUser 766 mtime=1793790778
+/srv/acl-g/sub/deep myUser:myUser 775 mtime=1793790776
+/srv/acl-g/sub/deep/old2.txt myUser:myUser 664 mtime=1577836800
+/srv/acl-g/sub/old.txt myUser:myUser 664 mtime=1577836800
+/srv/acl-g/top.txt myUser:myUser 664 mtime=1577836800

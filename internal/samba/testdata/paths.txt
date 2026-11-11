@@ -1,0 +1,167 @@
+=== testparm-paths-default ===
+	binddns dir = /var/lib/samba/bind-dns
+	cache directory = /var/cache/samba
+	lock directory = /var/cache/samba
+	log file = /var/log/samba/%m.log
+	ncalrpc dir = /var/run/samba/ncalrpc
+	passdb backend = tdbsam
+	pid directory = /run/samba
+	private dir = /var/lib/samba/private
+	state directory = /var/lib/samba
+	usershare path = /var/lib/samba/usershares
+=== samba-dirs-before-start ===
+/etc/samba:
+total 24
+drwxr-xr-x    2 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:10 ..
+-rw-r--r--    1 root     root          8410 May 28 04:58 smb.conf
+
+/run/samba:
+total 8
+drwxr-xr-x    2 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:10 ..
+
+/var/cache/samba:
+total 12
+drwxr-xr-x    2 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:10 ..
+
+/var/lib/samba:
+total 20
+drwxr-xr-x    5 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:10 ..
+drwxrwx---    2 root     root          4096 Nov  4 11:10 bind-dns
+drwx------    2 root     root          4096 Nov  4 11:10 private
+drwxr-xr-x    2 root     root          4096 Nov  4 11:10 sysvol
+
+/var/lib/samba/private:
+total 8
+drwx------    2 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    5 root     root          4096 Nov  4 11:10 ..
+
+/var/log/samba:
+total 8
+drwxr-xr-x    2 root     root          4096 Nov  4 11:10 .
+drwxr-xr-x    1 root     root          4096 Nov  4 11:10 ..
+=== databases ===
+drwxr-xr-x root:root 4096 /etc/samba
+-rw-r--r-- root:root 25 /etc/samba/rb-reader.conf
+-rw-r--r-- root:root 469 /etc/samba/smb.conf
+drwxr-xr-x root:root 4096 /run/samba
+drwxr-xr-x root:root 4096 /run/samba/ncalrpc
+drwx------ root:root 4096 /run/samba/ncalrpc/np
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/epmapper
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/eventlog
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/fssagentrpc
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/initshutdown
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/lsarpc
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/lsass
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/mdssvc
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/netdfs
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/ntsvcs
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/plugplay
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/samr
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/srvsvc
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/svcctl
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/winreg
+srwxrwxrwx root:root 0 /run/samba/ncalrpc/np/wkssvc
+drwxr-xr-x root:root 4096 /run/samba/nmbd
+-rw-r--r-- root:root 4 /run/samba/nmbd.pid
+srwxrwxrwx root:root 0 /run/samba/nmbd/unexpected
+-rw-r--r-- root:root 5 /run/samba/samba-dcerpcd.pid
+-rw-r--r-- root:root 5 /run/samba/smbd.pid
+drwxr-xr-x root:root 4096 /var/cache/samba
+-rw-r--r-- root:root 441608 /var/cache/samba/brlock.tdb
+-rw-r--r-- root:root 154 /var/cache/samba/browse.dat
+-rw-r--r-- root:root 16384 /var/cache/samba/epmdb.tdb
+-rw-r--r-- root:root 454656 /var/cache/samba/gencache.tdb
+-rw-r--r-- root:root 441608 /var/cache/samba/leases.tdb
+-rw-r--r-- root:root 483328 /var/cache/samba/locking.tdb
+drwxr-xr-x root:root 4096 /var/cache/samba/msg.lock
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/1004
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1013
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1015
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1323
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/1324
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1333
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1335
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1691
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1700
+-rw-r--r-- root:root 19 /var/cache/samba/msg.lock/1701
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/1834
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/1843
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1844
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1971
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/1980
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/1981
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/2119
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/2120
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/2128
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/2129
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/280
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/285
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/287
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/288
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/289
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/568
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/574
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/575
+-rw-r--r-- root:root 21 /var/cache/samba/msg.lock/576
+-rw-r--r-- root:root 20 /var/cache/samba/msg.lock/577
+-rw------- root:root 696 /var/cache/samba/mutex.tdb
+-rw-r--r-- root:root 4067 /var/cache/samba/namelist.debug
+-rw-rw---- root:root 12288 /var/cache/samba/names.tdb
+-rw------- root:root 8888 /var/cache/samba/smbXsrv_client_global.tdb
+-rw------- root:root 441608 /var/cache/samba/smbXsrv_open_global.tdb
+-rw------- root:root 441608 /var/cache/samba/smbXsrv_session_global.tdb
+-rw------- root:root 441608 /var/cache/samba/smbXsrv_tcon_global.tdb
+-rw------- root:root 24576 /var/cache/samba/smbXsrv_version_global.tdb
+-rw-r--r-- root:root 16384 /var/cache/samba/smbd_cleanupd.tdb
+drwxr-xr-x root:root 4096 /var/lib/samba
+-rw------- root:root 421888 /var/lib/samba/account_policy.tdb
+drwxrwx--- root:root 4096 /var/lib/samba/bind-dns
+-rw------- root:root 696 /var/lib/samba/group_mapping.tdb
+drwx------ root:root 4096 /var/lib/samba/private
+drwx------ root:root 4096 /var/lib/samba/private/msg.sock
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1004
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1013
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1015
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1323
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1324
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1333
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1335
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1691
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1700
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1701
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1834
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1843
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1844
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1971
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1980
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/1981
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/2119
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/2120
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/2128
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/2129
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/280
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/285
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/287
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/288
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/289
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/568
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/574
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/575
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/576
+srwxrwxrwx root:root 0 /var/lib/samba/private/msg.sock/577
+-rw------- root:root 421888 /var/lib/samba/private/passdb.tdb
+-rw------- root:root 430080 /var/lib/samba/private/secrets.tdb
+-rw------- root:root 528384 /var/lib/samba/registry.tdb
+-rw------- root:root 421888 /var/lib/samba/share_info.tdb
+drwxr-xr-x root:root 4096 /var/lib/samba/sysvol
+=== testparm-paths ===
+	cache directory = /var/cache/samba
+	lock directory = /var/cache/samba
+	passdb backend = tdbsam
+	pid directory = /run/samba
+	private dir = /var/lib/samba/private
+	state directory = /var/lib/samba

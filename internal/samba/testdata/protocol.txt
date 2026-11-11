@@ -1,0 +1,35 @@
+=== protocol-SMB3-client-NT1 ===
+exit status: 1
+lp_load_ex: Max protocol NT1 is less than min protocol SMB2_02.
+Protocol negotiation to server 127.0.0.1 (for a protocol between SMB2_02 and NT1) failed: NT_STATUS_INVALID_PARAMETER_MIX
+=== protocol-SMB3-client-SMB2 ===
+exit status: 1
+Protocol negotiation to server 127.0.0.1 (for a protocol between SMB2_02 and SMB2) failed: NT_STATUS_NOT_SUPPORTED
+=== protocol-SMB3-client-SMB3 ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:07 2026
+  ..                                  D        0  Wed Nov  4 11:11:07 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+
+		1055762868 blocks of size 1024. 980210756 blocks available
+=== protocol-SMB2_02-client-NT1 ===
+exit status: 1
+lp_load_ex: Max protocol NT1 is less than min protocol SMB2_02.
+Protocol negotiation to server 127.0.0.1 (for a protocol between SMB2_02 and NT1) failed: NT_STATUS_INVALID_PARAMETER_MIX
+=== protocol-SMB2_02-client-SMB2 ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:07 2026
+  ..                                  D        0  Wed Nov  4 11:11:07 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+
+		1055762868 blocks of size 1024. 980210756 blocks available
+=== protocol-SMB2_02-client-SMB3 ===
+exit status: 0
+  .                                   D        0  Wed Nov  4 11:11:07 2026
+  ..                                  D        0  Wed Nov  4 11:11:07 2026
+  writer-renamed.txt                  A        6  Wed Nov  4 11:11:06 2026
+  writer-dir                          D        0  Wed Nov  4 11:11:06 2026
+
+		1055762868 blocks of size 1024. 980210756 blocks available

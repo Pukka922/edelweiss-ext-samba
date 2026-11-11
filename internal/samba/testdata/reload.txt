@@ -1,0 +1,26 @@
+=== reload-before ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	later           Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== reload ===
+exit status: 0
+=== reload-after ===
+exit status: 0
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	s1              Disk      
+	later           Disk      
+	IPC$            IPC       IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== reload-smbd ===
+exit status: 0
+=== reload-rc-service ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Reloading smbd ... [ ok ]

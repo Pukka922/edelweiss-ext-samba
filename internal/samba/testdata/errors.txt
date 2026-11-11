@@ -1,0 +1,38 @@
+=== error-pdbedit-a-no-unix-user ===
+exit status: 255
+Failed to add entry for user nosuch.
+=== error-pdbedit-a-mismatch ===
+exit status: 255
+Passwords do not match!
+=== error-pdbedit-x-unknown ===
+exit status: 255
+user nosuch does not exist in the passdb
+=== error-smbpasswd-s-unknown ===
+exit status: 1
+Failed to find entry for user nosuch.
+=== error-smbpasswd-d-unknown ===
+exit status: 1
+Failed to find entry for user nosuch.
+=== error-smbpasswd-s-no-unix-user ===
+exit status: 1
+Failed to add entry for user nosuch.
+=== error-login-wrong-password ===
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE
+=== error-login-unknown-user ===
+exit status: 1
+session setup failed: NT_STATUS_LOGON_FAILURE
+=== error-share-unknown ===
+exit status: 1
+tree connect failed: NT_STATUS_BAD_NETWORK_NAME
+=== error-sharesec-unknown-name ===
+exit status: 255
+ACE 'nosuch:ALLOWED/0/READ': failed to convert 'nosuch' to SID
+Failed to parse acl
+=== error-sharesec-unknown-share ===
+exit status: 255
+Invalid sharename: nosuch
+=== error-smbcontrol-not-running ===
+exit status: 0
+exit status: 1
+Can't find pid for destination 'smbd'
