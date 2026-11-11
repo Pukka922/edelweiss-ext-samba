@@ -193,7 +193,7 @@ describe("ServiceAccountDialog", () => {
     });
     fireEvent.click(r.getByRole("button", { name: "Anlegen" }));
     expect((await r.findByRole("alert")).textContent).toBe(
-      "Der Ordner gehört root. Wähle einen eigenen Ordner oder lege mit „Neuer Ordner“ einen an.",
+      "Der Ordner gehört root, und root hat schon ein Konto: Dafür wird kein Dienstkonto angelegt.",
     );
     expect(r.onChanged).not.toHaveBeenCalled();
     expect((r.getByRole("button", { name: "Anlegen" }) as HTMLButtonElement).disabled).toBe(false);

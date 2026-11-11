@@ -152,20 +152,28 @@ func (p *plan) staleIncludes(files map[string]string) []string {
 
 // renderEnv is what Render needs for the config: the owner of each share's folder, the Samba users that have an entry,
 // the binary, the shares on a file system without attributes, the interfaces (the networks of the bridges), and whether
-// smbd announces itself through avahi: the discovery is on, on a local interface (setup.LocalInterfaces). paths.Available decides where the owner comes from. A
+// smbd announces itself through avahi: the discovery is on, on a local interface (setup.LocalInterfaces), and the warnings of each
+// share's folder now (paths.WarningsOn, with the boot media looked up once), which decide whether Render leaves a share out
+// as unconfirmed. paths.Available decides where the owner comes from. A
 // share whose disk is not there (unmounted), or whose folder is not (missing), keeps the owner that the live smb.conf
 // gives it, so that the share stays and smbd serves it again once the disk is back (the root preexec refuses it until
 // then); for a share whose folder is its mount point, the empty mount point is no owner. A share that is there gets the
 // owner of its folder, and one whose folder is a link, or whose owner has no account, none: Render leaves it out.
 func (p *plan) renderEnv(cfg samba.Config) samba.RenderEnv {
 	env := samba.RenderEnv{Owners: map[string]samba.Owner{}, SambaUsers: map[string]bool{}, Binary: p.env.Binary, NoXattr: map[string]bool{},
-		Ifaces: p.env.Ifaces, MDNS: cfg.Settings.Discovery && len(setup.LocalInterfaces(cfg.Settings.Interfaces, p.env.Ifaces)) > 0}
+		Warnings: map[string][]string{},
+		Ifaces:   p.env.Ifaces, MDNS: cfg.Settings.Discovery && len(setup.LocalInterfaces(cfg.Settings.Interfaces, p.env.Ifaces)) > 0}
 	for name := range p.sids() {
 		env.SambaUsers[name] = true
 	}
 	var live map[string]samba.Owner
+	var boot []string
+	if len(cfg.Shares) > 0 {
+		boot = paths.BootMedia(p.env.FS, p.env.Mounts)
+	}
 	for _, s := range cfg.Shares {
 		ok, reason := paths.Available(p.env.FS, s)
+		uid := -1 // not read where the disk is not there
 		switch {
 		case !ok && (reason == paths.Unmounted || reason == paths.Missing):
 			if live == nil {
@@ -175,11 +183,15 @@ func (p *plan) renderEnv(cfg samba.Config) samba.RenderEnv {
 				env.Owners[s.Name] = lo
 			}
 		case ok:
-			if o, err := paths.OwnerOf(p.root, s.Path, p.env.DB); err == nil && o.User != "" && o.Group != "" {
-				env.Owners[s.Name] = samba.Owner{User: o.User, Group: o.Group}
+			if o, err := p.ownerOf(s.Path); err == nil {
+				uid = o.UID
+				if o.User != "" && o.Group != "" {
+					env.Owners[s.Name] = samba.Owner{User: o.User, Group: o.Group}
+				}
 			}
 		}
-		if m, ok := p.dataMount(s.Mount); ok && !m.Xattr {
+		env.Warnings[s.Name] = paths.WarningsOn(p.env.Mounts, boot, s.Path, uid)
+		if m, ok := p.shareMount(s.Mount); ok && !m.Xattr {
 			env.NoXattr[s.Name] = true
 		}
 	}

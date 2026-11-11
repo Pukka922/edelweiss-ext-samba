@@ -11,7 +11,7 @@ const isText = (s: unknown): s is string => typeof s === "string" && s !== "";
 /**
  * The field of the share dialog that a refusal of share-add or share-edit is about, with its text: an invalid_input of a
  * field of the form (worded by its reason, else its field), a name that is taken, a folder that is in another share or
- * holds one, has an owner without an account, belongs to root, or is not there. Undefined for any other refusal, which
+ * holds one, has an owner without an account, or is not there. Undefined for any other refusal, which
  * stands below the form.
  */
 export function fieldOf(err: unknown, t: Translator["t"]): [FormField, string] | undefined {
@@ -32,7 +32,6 @@ export function fieldOf(err: unknown, t: Translator["t"]): [FormField, string] |
       ];
     }
     case "no_owner":
-    case "root_owned":
       return ["path", errorText(err, t)];
     case "not_found":
       return isText(d.path) ? ["path", t("share.pathMissing")] : undefined;

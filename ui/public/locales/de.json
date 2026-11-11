@@ -85,15 +85,16 @@
       "unmounted": "Platte fehlt",
       "missing": "Ordner fehlt",
       "link": "Ordner ist ein Link",
-      "no_owner": "Besitzer fehlt"
+      "no_owner": "Besitzer fehlt",
+      "kernel": "Unter dem Ordner ist eine Kernel-Schnittstelle eingehängt (/proc, /sys oder /dev), deshalb ist die Freigabe gesperrt."
     },
     "skipped": {
       "no_users": "niemand hat Zugriff",
-      "root_owned": "gehört root",
       "no_owner": "Besitzer fehlt",
       "bad_name": "der Name geht für Samba nicht",
       "case_clash": "der Name gleicht einem anderen bis auf Groß- und Kleinschreibung",
-      "bad_path": "der Ordner geht für Samba nicht"
+      "bad_path": "der Ordner geht für Samba nicht",
+      "unconfirmed": "Bestätigung nötig: Der Ordner ist inzwischen ein Systemordner oder gehört root. Bestätige die Warnungen im Bearbeiten-Dialog, dann ist die Freigabe wieder erreichbar."
     }
   },
   "share": {
@@ -111,10 +112,16 @@
     "recycleDaysHint": "1 bis 3650 Tage",
     "owner": "Samba greift als Besitzer des Ordners ({{ owner }}) auf die Dateien zu; an bestehenden Dateien ändert sich nichts.",
     "ownerPerUser": "Diese Freigabe nutzt Ordner-Rechte: Samba greift als der jeweilige Nutzer zu, in der Gruppe {{ group }}.",
-    "ownerRoot": "Der Ordner gehört root. Wähle einen eigenen Ordner oder lege mit „Neuer Ordner“ einen an.",
     "ownerMissing": "Der Ordner gehört UID {{ uid }} und GID {{ gid }}, für die es auf diesem Host kein Konto gibt (etwa eine Platte von einem anderen Rechner).",
     "ownerReading": "Lese den Besitzer des Ordners …",
-    "pathHint": "Wähle einen Ordner auf einer Datenplatte.",
+    "pathHint": "Wähle einen Ordner.",
+    "know": "Ich weiß, was ich tue",
+    "warning": {
+      "system": "Das ist ein Systemordner oder er enthält einen. Wer hier lesen darf, sieht auch Passwörter und Schlüssel, und Änderungen können das System kaputt machen.",
+      "root_owned": "Der Ordner gehört root. samba greift deshalb als root zu: Wer hier lesen darf, sieht alles darin, und wer schreiben darf, kann alles ändern – praktisch wie root auf dieser Maschine.",
+      "holds_mount": "In diesem Ordner ist eine andere Platte eingehängt. Fehlt sie, landet Geschriebenes im leeren Ordner auf dieser Platte.",
+      "ram": "Der Ordner liegt im Arbeitsspeicher. Nach einem Neustart ist sein Inhalt weg."
+    },
     "pathPerUser": "Diese Freigabe nutzt Ordner-Rechte und behält ihren Ordner.",
     "pathInUse": "Der Ordner liegt in einer anderen Freigabe oder enthält eine: {{ shares }}.",
     "pathMissing": "Den Ordner gibt es nicht.",
@@ -140,16 +147,16 @@
   },
   "navigator": {
     "title": "Ordner wählen",
-    "disks": "Datenplatten",
+    "disks": "Platten",
+    "system": "Systemplatte (/)",
+    "systemRam": "System (/, im RAM)",
     "disk": "{{ point }} · {{ type }} · {{ free }} frei",
-    "noDisks": "Keine Datenplatte ist eingehängt.",
-    "chooseDisk": "Wähle eine Datenplatte.",
     "path": "Pfad",
     "folders": "Unterordner",
     "up": "eine Ebene höher",
     "empty": "Hier sind keine Ordner.",
     "truncated": "Hier sind mehr Ordner, als die Liste zeigt.",
-    "note": "nur Ordner · Systemordner werden nicht angeboten · keine Links",
+    "note": "nur Ordner · keine Links · /proc, /sys und /dev werden nicht angeboten",
     "reading": "Lese den Ordner …",
     "newFolder": "Neuer Ordner …",
     "newName": "Name des neuen Ordners",
@@ -390,7 +397,9 @@
     "unavailableShare": "Die Platte der Freigabe {{ share }} ist nicht da.",
     "no_owner": "Der Besitzer des Ordners hat kein Konto auf diesem Host – lege ein Dienstkonto an.",
     "noOwner": "Der Besitzer {{ uid }}:{{ gid }} des Ordners hat kein Konto auf diesem Host – lege ein Dienstkonto an.",
-    "root_owned": "Der Ordner gehört root. Wähle einen eigenen Ordner oder lege mit „Neuer Ordner“ einen an.",
+    "root_owned": "Der Ordner gehört root, und root hat schon ein Konto: Dafür wird kein Dienstkonto angelegt.",
+    "folder_rights_unsafe": "Für Systemordner, Ordner von root und Home-Verzeichnisse gibt es keine Ordner-Rechte: Das Umstellen würde jede Datei darin für die Gruppe schreibbar machen – bei einem Home sperrt das die Anmeldung per SSH-Schlüssel.",
+    "confirm_needed": "Bestätige zuerst die Warnungen zu diesem Ordner.",
     "wrong_password": "Das Linux-Passwort stimmt nicht.",
     "no_acl": "Die Platte dieser Freigabe kann keine Ordner-Rechte halten.",
     "noAcl": "Die Platte dieser Freigabe kann keine Ordner-Rechte halten: {{ reason }}",
@@ -403,12 +412,13 @@
     "csrf_invalid": "Die Seite war zu lange offen. Lade sie neu und versuch es noch einmal.",
     "reason": {
       "not_absolute": "Der Ordner muss ein absoluter Pfad ohne . und .. sein (etwa /mnt/daten/Fotos).",
-      "no_data_mount": "Der Ordner liegt auf keiner Datenplatte.",
+      "no_data_mount": "Die Platte des Ordners hat sich geändert oder ist nicht mehr da, oder der Ordner lässt sich nicht lesen.",
+      "kernel": "/proc, /sys und /dev sind Schnittstellen zum Kernel und können nicht freigegeben werden.",
+      "not_mounted": "Hier gehört laut /etc/fstab eine Platte hin, die gerade nicht eingehängt ist. Häng sie zuerst ein.",
       "link": "Der Ordner ist ein Link oder liegt hinter einem – Links werden nicht verfolgt.",
       "not_dir": "Das ist kein Ordner.",
       "per_user": "Diese Freigabe nutzt Ordner-Rechte und behält ihren Ordner.",
       "per_user_disk_changed": "Diese Freigabe nutzt Ordner-Rechte und liegt jetzt auf einem anderen Datenträger. Entferne sie und lege sie neu an.",
-      "system_dir": "Systemordner (etwa /var/lib oder /var/log) werden nicht angeboten und nicht freigegeben, auch kein Ordner, der einen enthält.",
       "in_share": "Der Ordner liegt in einer Freigabe: Ein neuer Ordner darin ließe sich nicht als eigene Freigabe anlegen."
     },
     "aclReason": {

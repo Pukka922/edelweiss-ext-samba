@@ -80,7 +80,7 @@ const STEP_CODES = found(/^const Code\w+ = "(\w+)"/gm, "internal/recycle/restore
 
 /** Why a folder cannot be served (paths.Available): the constants of internal/paths/check.go. */
 const SHARE_REASONS = found(
-  /^\s*(?:Unmounted|Missing|Link|NoOwner)\s*=\s*"(\w+)"/gm,
+  /^\s*(?:Unmounted|Missing|Link|NoOwner|KernelTree)\s*=\s*"(\w+)"/gm,
   "internal/paths/check.go",
 );
 
@@ -115,6 +115,8 @@ describe("what the Go code can answer with", () => {
         "unavailable",
         "no_owner",
         "root_owned",
+        "confirm_needed",
+        "folder_rights_unsafe",
         "wrong_password",
         "no_acl",
         "needs_convert",
@@ -141,27 +143,28 @@ describe("what the Go code can answer with", () => {
     );
     expect(INPUT_REASONS).toEqual(
       [
+        "kernel",
         "link",
         "no_data_mount",
         "not_absolute",
         "not_dir",
         "per_user",
         "per_user_disk_changed",
-        "system_dir",
         "in_share",
+        "not_mounted",
       ].sort(),
     );
     expect(ACL_REASONS).toEqual(["no_posix_acl", "no_privilege", "no_xattr"]);
     expect(JOB_CODES).toEqual(["cancelled", "failed", "interrupted", "not_confirmed"]);
     expect(STEP_CODES).toEqual(["no_noreplace"]);
-    expect(SHARE_REASONS).toEqual(["link", "missing", "no_owner", "unmounted"]);
+    expect(SHARE_REASONS).toEqual(["kernel", "link", "missing", "no_owner", "unmounted"]);
     expect(SKIP_REASONS).toEqual([
       "bad_name",
       "bad_path",
       "case_clash",
       "no_owner",
       "no_users",
-      "root_owned",
+      "unconfirmed",
     ]);
   });
 
@@ -240,6 +243,45 @@ describe("errorText for the codes and reasons of the API", () => {
         expect(text, reason).not.toMatch(/^(The input is not valid|Die Eingabe geht so nicht)/);
       }
     }
+  });
+
+  it("words the kernel refusal", () => {
+    const kernel = err(400, "invalid_input", { field: "path", reason: "kernel" });
+    expect(errorText(kernel, de_)).toBe(
+      "/proc, /sys und /dev sind Schnittstellen zum Kernel und können nicht freigegeben werden.",
+    );
+    expect(errorText(kernel, en_)).toBe(
+      "/proc, /sys and /dev are interfaces to the kernel and cannot be shared.",
+    );
+  });
+
+  it("words confirm_needed, folder_rights_unsafe and the folder that changed or cannot be read", () => {
+    expect(errorText(err(409, "confirm_needed", { warnings: ["system"] }), de_)).toBe(
+      "Bestätige zuerst die Warnungen zu diesem Ordner.",
+    );
+    expect(errorText(err(409, "folder_rights_unsafe", { warnings: ["root_owned"] }), de_)).toBe(
+      "Für Systemordner, Ordner von root und Home-Verzeichnisse gibt es keine Ordner-Rechte: Das Umstellen würde jede Datei darin für die Gruppe schreibbar machen – bei einem Home sperrt das die Anmeldung per SSH-Schlüssel.",
+    );
+    const gone = err(400, "invalid_input", { field: "dir", reason: "no_data_mount" });
+    expect(errorText(gone, de_)).toBe(
+      "Die Platte des Ordners hat sich geändert oder ist nicht mehr da, oder der Ordner lässt sich nicht lesen.",
+    );
+    expect(errorText(gone, en_)).toBe(
+      "The disk of the folder has changed or is gone, or the folder cannot be read.",
+    );
+    expect(errorText(err(409, "root_owned"), de_)).toBe(
+      "Der Ordner gehört root, und root hat schon ein Konto: Dafür wird kein Dienstkonto angelegt.",
+    );
+  });
+
+  it("words the folder at the mount point of a disk that is not mounted", () => {
+    const gone = err(400, "invalid_input", { field: "path", reason: "not_mounted" });
+    expect(errorText(gone, de_)).toBe(
+      "Hier gehört laut /etc/fstab eine Platte hin, die gerade nicht eingehängt ist. Häng sie zuerst ein.",
+    );
+    expect(errorText(gone, en_)).toBe(
+      "By /etc/fstab a disk belongs here that is not mounted right now. Mount it first.",
+    );
   });
 
   it("words the reason of a share with folder rights that is on another disk now", () => {

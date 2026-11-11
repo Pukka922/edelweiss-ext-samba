@@ -6,7 +6,7 @@
 //
 // The checks come in this order, and the first that fails is the answer: the kind of the request; a config that cannot be
 // read (failed, for every kind); the setup (every kind but setup needs the extension's config, else not_setup); the
-// objects the request names (not_found); the rules (invalid_input, exists, in_use, unavailable, no_owner, root_owned,
+// objects the request names (not_found); the rules (invalid_input, exists, in_use, unavailable, no_owner, confirm_needed,
 // no_acl, needs_convert); and last the plan itself (failed). A plan changes nothing before the steps that can still
 // refuse (the check of the new smb.conf, the group of the setup) have run.
 //
@@ -53,8 +53,8 @@ const (
 
 // Request is a change that the user asks for. Kind says which, and the fields it needs are set:
 //   - share-add: Share (name, path, comment, rights, hidden, recycle, recycleDays; the mount, the file system and the
-//     folder rights of a request are not taken);
-//   - share-edit: Name (the share as it is) and Share (as it is to be); share-delete: Name;
+//     folder rights of a request are not taken); Acknowledge lists the warnings of its folder (paths.Warnings) that the user saw and confirms: all that the folder has now have to be there;
+//   - share-edit: Name (the share as it is) and Share (as it is to be), Acknowledge as for share-add; share-delete: Name;
 //   - settings: Settings (all of them);
 //   - folder-rights: Name, Folder (below the share), and Rights, or Inherit (the folder loses its own rights); Convert
 //     confirms the conversion that the first folder rights of a share need. Folder "" alone (no rights, no inherit)
@@ -65,17 +65,18 @@ const (
 //   - user-drop: User, a name that has no Samba entry any more (the API removed it, or a user was deleted elsewhere);
 //   - setup and start: nothing.
 type Request struct {
-	Kind     string                 `json:"kind"`
-	Share    *samba.Share           `json:"share,omitempty"`
-	Name     string                 `json:"name,omitempty"`
-	Settings *samba.Settings        `json:"settings,omitempty"`
-	Folder   string                 `json:"folder,omitempty"`
-	Rights   map[string]samba.Right `json:"rights,omitempty"`
-	Inherit  bool                   `json:"inherit,omitempty"`
-	Convert  bool                   `json:"convert,omitempty"`
-	Item     string                 `json:"item,omitempty"`
-	Path     string                 `json:"path,omitempty"`
-	User     string                 `json:"user,omitempty"`
+	Kind        string                 `json:"kind"`
+	Share       *samba.Share           `json:"share,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Settings    *samba.Settings        `json:"settings,omitempty"`
+	Folder      string                 `json:"folder,omitempty"`
+	Rights      map[string]samba.Right `json:"rights,omitempty"`
+	Inherit     bool                   `json:"inherit,omitempty"`
+	Convert     bool                   `json:"convert,omitempty"`
+	Acknowledge []string               `json:"acknowledge,omitempty"`
+	Item        string                 `json:"item,omitempty"`
+	Path        string                 `json:"path,omitempty"`
+	User        string                 `json:"user,omitempty"`
 }
 
 // Env is the fresh look at the host that a plan is made from.
@@ -86,13 +87,14 @@ type Request struct {
 //     missing config file is no error.
 //   - SambaUsers is a fresh pdbedit -L -v (samba.Tools.Users): only these names, with their SIDs, get rights.
 //   - DB are the accounts (accounts.Load), for the names of the owners of the folders.
-//   - Mounts is /proc/mounts (host.FS.Mounts), Data the data mounts of the same moment (paths.DataMounts).
+//   - Mounts is /proc/mounts (host.FS.Mounts), Data the mounts a share can be on, of the same moment (paths.ShareMounts).
 //   - Ifaces are the network interfaces (samba.SystemInterfaces).
 //   - Binary is the extension's binary with its links resolved, which smbd's root preexec and the periodic script call;
 //     Self the binary that the steps run as --samba-tool (/proc/self/exe).
 //   - JobDir is the directory of the job that the plan is for (jobs.Store.Base and the id of Store.NewID), below /run: the
 //     plan stages smb.conf there, and the spec gets its id.
 //   - Probe is the probe of the folder rights for a share (acl.Probe of its folder); nil is the real one.
+//   - OwnerOf is the owner of a folder that the plans look up (paths.OwnerOf); nil is the real one.
 //   - Ctx ends what Build looks at that can take long (the count of the files of a conversion): the API passes the
 //     request's; nil is context.Background().
 type Env struct {
@@ -105,37 +107,40 @@ type Env struct {
 	SambaUsers []samba.SambaUser
 	DB         *accounts.DB
 	Mounts     []host.Mount
-	Data       []paths.DataMount
+	Data       []paths.ShareMount
 	Ifaces     []samba.Iface
 	Binary     string
 	Self       string
 	JobDir     string
 	Probe      func(share samba.Share) error
+	OwnerOf    func(root safefs.Root, path string, db *accounts.DB) (paths.Ownership, error)
 	Ctx        context.Context
 }
 
 // The codes of an Error: those of the API.
 const (
-	CodeInvalidInput = "invalid_input"
-	CodeNotSetup     = "not_setup"
-	CodeNotFound     = "not_found"
-	CodeExists       = "exists"
-	CodeInUse        = "in_use"
-	CodeUnavailable  = "unavailable"
-	CodeNoOwner      = "no_owner"
-	CodeRootOwned    = "root_owned"
-	CodeNoACL        = "no_acl"
-	CodeNeedsConvert = "needs_convert"
-	CodeFailed       = "failed"
+	CodeInvalidInput       = "invalid_input"
+	CodeNotSetup           = "not_setup"
+	CodeNotFound           = "not_found"
+	CodeExists             = "exists"
+	CodeInUse              = "in_use"
+	CodeUnavailable        = "unavailable"
+	CodeNoOwner            = "no_owner"
+	CodeRootOwned          = "root_owned"
+	CodeConfirmNeeded      = "confirm_needed"
+	CodeFolderRightsUnsafe = "folder_rights_unsafe"
+	CodeNoACL              = "no_acl"
+	CodeNeedsConvert       = "needs_convert"
+	CodeFailed             = "failed"
 )
 
 // Error is a request that Build refuses. Code is one of the codes above, Message says why (for the log), Field names the
 // value of the request for invalid_input (camelCase, as the API has it), and Details carry what the code promises:
 // user, path, folder, item or iface (not_found: the name that is not there), reason (invalid_input of a path, a folder or
-// an item: not_absolute, no_data_mount, link, not_dir, per_user, per_user_disk_changed; no_acl: no_xattr, no_privilege,
+// an item: not_absolute, no_data_mount, kernel, link, not_dir, per_user, per_user_disk_changed; no_acl: no_xattr, no_privilege,
 // no_posix_acl), iface (invalid_input of a bridge), shares (in_use), share (unavailable, needs_convert), files and capped
 // (needs_convert: the files and folders that the conversion changes, at most the cap, and whether there are more), uid and
-// gid (no_owner).
+// gid (no_owner), warnings (confirm_needed: the codes of paths.Warnings; folder_rights_unsafe: those of them that are system or root_owned).
 type Error struct {
 	Code, Message, Field string
 	Details              map[string]any
@@ -315,11 +320,19 @@ func (p *plan) find(name string) (int, samba.Share, error) {
 	return i, p.env.Config.Shares[i], nil
 }
 
-// dataMount is the data mount at the mount point.
-func (p *plan) dataMount(point string) (paths.DataMount, bool) {
-	i := slices.IndexFunc(p.env.Data, func(m paths.DataMount) bool { return m.Point == point })
+// ownerOf is the owner of the folder (Env.OwnerOf, or paths.OwnerOf).
+func (p *plan) ownerOf(path string) (paths.Ownership, error) {
+	if p.env.OwnerOf != nil {
+		return p.env.OwnerOf(p.root, path, p.env.DB)
+	}
+	return paths.OwnerOf(p.root, path, p.env.DB)
+}
+
+// shareMount is the mount a share can be on at the mount point.
+func (p *plan) shareMount(point string) (paths.ShareMount, bool) {
+	i := slices.IndexFunc(p.env.Data, func(m paths.ShareMount) bool { return m.Point == point })
 	if i < 0 {
-		return paths.DataMount{}, false
+		return paths.ShareMount{}, false
 	}
 	return p.env.Data[i], true
 }

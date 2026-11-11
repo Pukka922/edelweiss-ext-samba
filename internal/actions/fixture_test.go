@@ -16,6 +16,7 @@ import (
 	"github.com/Pukka922/edelweiss-ext-samba/internal/host"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/jobs"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/paths"
+	"github.com/Pukka922/edelweiss-ext-samba/internal/safefs"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/samba"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/setup"
 )
@@ -112,7 +113,7 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := paths.DataMounts(fs, nil)
+	data, err := paths.ShareMounts(fs, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,6 +144,20 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// asRoot has the owner lookup of the plans report root (root:root, which the accounts have) for these folders, as if they
+// belonged to root: a test cannot give a folder to root.
+func (f *fixture) asRoot(folders ...string) {
+	f.env.DB.Users = append(f.env.DB.Users, accounts.User{Name: "root"})
+	f.env.DB.Groups = append(f.env.DB.Groups, accounts.Group{Name: "root"})
+	f.env.OwnerOf = func(root safefs.Root, p string, db *accounts.DB) (paths.Ownership, error) {
+		o, err := paths.OwnerOf(root, p, db)
+		if err == nil && slices.Contains(folders, p) {
+			o = paths.Ownership{UID: 0, GID: 0, User: "root", Group: "root"}
+		}
+		return o, err
+	}
+}
 
 // services puts the services into the runlevel and has OpenRC show them started.
 func (f *fixture) services(svcs ...string) {

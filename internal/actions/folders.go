@@ -5,11 +5,15 @@ import (
 	"errors"
 	"io/fs"
 	"maps"
+	"os"
+	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
 
+	"github.com/Pukka922/edelweiss-ext-samba/internal/accounts"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/acl"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/jobs"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/paths"
@@ -51,8 +55,16 @@ func buildFolderRights(p *plan, r Request) (jobs.Spec, error) {
 	if err := acl.ValidFolder(r.Folder); err != nil {
 		return jobs.Spec{}, invalid("folder", "%v", err)
 	}
+	if err := p.notKernel(sh, r.Folder, "folder"); err != nil {
+		return jobs.Spec{}, err
+	}
 	if ok, _ := paths.Available(p.env.FS, sh); !ok {
 		return jobs.Spec{}, newError(CodeUnavailable, "the disk of the share %q is not there", sh.Name).with("share", sh.Name)
+	}
+	if !r.Inherit {
+		if err := p.rightsSafe(sh); err != nil {
+			return jobs.Spec{}, err
+		}
 	}
 	fd, err := p.root.OpenDir(strings.TrimPrefix(sh.Path+"/"+r.Folder, "/"), false)
 	var link *safefs.LinkError
@@ -123,6 +135,70 @@ func buildFolderRights(p *plan, r Request) (jobs.Spec, error) {
 	return p.spec(kindFolderRights, sh.Name+"/"+r.Folder), nil
 }
 
+// notKernel refuses a folder (or item) below the share whose absolute path is a kernel folder (paths.Kernel): the folder
+// proc of a share of /, or one on a pseudo mount below the share. The field names the value of the request.
+func (p *plan) notKernel(sh samba.Share, rel, field string) error {
+	if abs := path.Join(sh.Path, rel); paths.Kernel(p.env.Mounts, abs) {
+		return invalid(field, "%s is an interface to the kernel", abs).with("reason", reasonKernel)
+	}
+	return nil
+}
+
+// rightsSafe refuses folder rights for a share whose folder has the warning system or root_owned, or is or holds a home
+// directory (homeIn; details warnings, "home" is no share warning, only a reason here): the conversion would make every
+// file in it writable for the group (/etc/shadow, sudoers), and the group of the share would be root's; in a home it
+// would make .ssh writable for the group, and sshd refuses the key then. Taking rights away and applying them again are
+// not asked here.
+func (p *plan) rightsSafe(sh samba.Share) error {
+	o, err := p.ownerOf(sh.Path)
+	if err != nil {
+		return failed("%v", err)
+	}
+	var unsafe []string
+	for _, w := range paths.WarningsFor(p.env.FS, p.env.Mounts, sh.Path, o.UID) {
+		if w == paths.WarnSystem || w == paths.WarnRootOwned {
+			unsafe = append(unsafe, w)
+		}
+	}
+	if p.homeIn(sh.Path) {
+		unsafe = append(unsafe, reasonHome)
+	}
+	if len(unsafe) > 0 {
+		return newError(CodeFolderRightsUnsafe, "the share %q is a system folder, belongs to root or holds a home directory: no folder rights", sh.Name).
+			with("warnings", unsafe)
+	}
+	return nil
+}
+
+// reasonHome is the reason among the warnings of folder_rights_unsafe that the folder is or holds a home directory.
+const reasonHome = "home"
+
+// homeIn reports whether the absolute, clean folder dir is, or holds, the home directory of a user of /etc/passwd (one
+// that exists, and is none of /, /dev/null and /var/empty, which the accounts without a home have), or holds a .ssh
+// directly in it.
+func (p *plan) homeIn(dir string) bool {
+	if _, err := os.Lstat(filepath.Join(p.env.FS.Root, dir, ".ssh")); err == nil {
+		return true
+	}
+	data, err := os.ReadFile(filepath.Join(p.env.FS.Root, accounts.PasswdFile))
+	if err != nil {
+		return false
+	}
+	for _, e := range accounts.ParsePasswd(string(data)) {
+		home := path.Clean(e.Home)
+		if !path.IsAbs(e.Home) || home == "/" || home == "/dev/null" || home == "/var/empty" {
+			continue
+		}
+		if home != dir && !strings.HasPrefix(home, strings.TrimSuffix(dir, "/")+"/") {
+			continue
+		}
+		if st, err := os.Stat(filepath.Join(p.env.FS.Root, home)); err == nil && st.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
 // reapplyRoot plans "erneut anwenden" at the share's own folder: the share's rights are written again from the share's
 // folder down, as a change of the share's rights writes them (applyTree of ""): the share's folder with --keep for every
 // folder with rights of its own, then those folders from the top down. It mends what a cancelled or failed apply left
@@ -149,9 +225,9 @@ func (p *plan) reapplyRoot(sh samba.Share, r Request) (jobs.Spec, error) {
 	return p.spec(kindFolderRights, sh.Name), nil
 }
 
-// mountOf is the data mount of the share; one that is no data mount (any more) keeps no attributes.
-func (p *plan) mountOf(sh samba.Share) paths.DataMount {
-	m, _ := p.dataMount(sh.Mount)
+// mountOf is the mount of the share; one that is none (any more) keeps no attributes.
+func (p *plan) mountOf(sh samba.Share) paths.ShareMount {
+	m, _ := p.shareMount(sh.Mount)
 	return m
 }
 

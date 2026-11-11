@@ -6,25 +6,24 @@ import { tSafe } from "../errors";
 /** The owner of a folder, and what it means for a share of it. */
 export interface Owner {
   o: OwnerView;
-  state: "ok" | "root" | "missing";
+  state: "ok" | "missing";
 }
 
 /**
- * What the owner of a folder means for a share, by the server's rule for a share (checkShare): one of root is none
- * (Samba would write as root), and one without the name of its user and of its group has no account (no_owner, the same
- * for a share with folder rights). Undefined while there is no owner.
+ * What the owner of a folder means for a share, by the server's rule for a share (checkShare): one without the name of its
+ * user and of its group has no account (no_owner, the same for a share with folder rights). root has an account: a folder
+ * of root is a share like any other, with the warning root_owned, which the dialog words. Undefined while there is no owner.
  */
 export function ownerOf(o: OwnerView | undefined): Owner | undefined {
   if (!o) return undefined;
-  if (o.uid === 0) return { o, state: "root" };
   if (o.user === "" || o.group === "") return { o, state: "missing" };
   return { o, state: "ok" };
 }
 
 /**
  * The owner of the folder, whom Samba accesses the files as (a share with folder rights: each user, in the group of the
- * folder): while it is read, a folder of root (no share is made of it), and an owner without an account, which offers
- * "Dienstkonto anlegen". Nothing for a folder that is not read.
+ * folder): while it is read, and an owner without an account, which offers "Dienstkonto anlegen". Nothing for a folder
+ * that is not read.
  */
 export function OwnerLine(props: {
   reading: boolean;
@@ -49,9 +48,6 @@ export function OwnerLine(props: {
             {props.perUser
               ? tSafe(t, "share.ownerPerUser", { group: own().o.group })
               : tSafe(t, "share.owner", { owner: `${own().o.user}:${own().o.group}` })}
-          </Show>
-          <Show when={own().state === "root"}>
-            <span class="text-warning">{t("share.ownerRoot")}</span>
           </Show>
           <Show when={own().state === "missing"}>
             <div class="flex flex-col items-start gap-2">

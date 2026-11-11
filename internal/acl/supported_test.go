@@ -17,11 +17,11 @@ import (
 // Folder rights need a file system that keeps the attributes (not vfat: no_xattr) and the privilege to write
 // security.* (EPERM without CAP_SYS_ADMIN: no_privilege); the probe answers for the second.
 func TestSupported(t *testing.T) {
-	ext4 := paths.DataMount{Point: "/mnt/disk", Type: "ext4", Xattr: true}
-	vfat := paths.DataMount{Point: "/mnt/stick", Type: "vfat"}
+	ext4 := paths.ShareMount{Point: "/mnt/disk", Type: "ext4", Xattr: true}
+	vfat := paths.ShareMount{Point: "/mnt/stick", Type: "vfat"}
 	for _, c := range []struct {
 		name   string
-		m      paths.DataMount
+		m      paths.ShareMount
 		probe  error
 		ok     bool
 		reason string
@@ -66,7 +66,7 @@ func TestProbePosixACL(t *testing.T) {
 	if !errors.Is(err, acl.ErrNoPosixACL) {
 		t.Errorf("probe %v, want ErrNoPosixACL", err)
 	}
-	if ok, reason := acl.Supported(paths.DataMount{Xattr: true}, func() error { return err }); ok || reason != acl.ReasonNoPosixACL {
+	if ok, reason := acl.Supported(paths.ShareMount{Xattr: true}, func() error { return err }); ok || reason != acl.ReasonNoPosixACL {
 		t.Errorf("Supported = %v %q", ok, reason)
 	}
 	// the attribute of the conversion itself works here (the tests of Convert write it)
@@ -128,7 +128,7 @@ func TestProbe(t *testing.T) {
 		if !errors.Is(err, unix.EPERM) {
 			t.Errorf("security.NTACL without the privilege: %v, want EPERM", err)
 		}
-		if ok, reason := acl.Supported(paths.DataMount{Xattr: true}, func() error { return err }); ok || reason != acl.ReasonNoPrivilege {
+		if ok, reason := acl.Supported(paths.ShareMount{Xattr: true}, func() error { return err }); ok || reason != acl.ReasonNoPrivilege {
 			t.Errorf("Supported = %v %q", ok, reason)
 		}
 	} else {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/Pukka922/edelweiss-ext-samba/internal/accounts"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/acl"
+	"github.com/Pukka922/edelweiss-ext-samba/internal/host"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/paths"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/safefs"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/samba"
@@ -27,12 +29,12 @@ func TestBrowseNoLinks(t *testing.T) {
 	f.write("/mnt/disk/file.txt", "x")
 	got := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/mnt/disk", nil, admin).want(t, 200))
 	want := BrowseResponse{Dir: "/mnt/disk", Entries: []EntryView{{Name: "data", HasChildren: true}, {Name: "more"}},
-		Owner: OwnerView{UID: os.Getuid(), GID: os.Getgid(), User: "myUser", Group: "myGroup"}}
+		Owner: OwnerView{UID: os.Getuid(), GID: os.Getgid(), User: "myUser", Group: "myGroup"}, Warnings: []string{}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("browse\n got %+v\nwant %+v", got, want)
 	}
 	for _, c := range []struct{ dir, reason string }{
-		{"/mnt/disk/link", "link"}, {"/mnt/disk/link/sub", "link"}, {"/etc", "no_data_mount"}, {"mnt/disk", "not_absolute"},
+		{"/mnt/disk/link", "link"}, {"/mnt/disk/link/sub", "link"}, {"/proc", "kernel"}, {"mnt/disk", "not_absolute"},
 		{"/mnt/disk/", "not_absolute"}, {"", "not_absolute"}, {"/mnt/disk/file.txt", "not_dir"},
 	} {
 		e := f.send("GET", "/browse?dir="+c.dir, nil, admin).wantError(t, 400, "invalid_input")
@@ -44,32 +46,80 @@ func TestBrowseNoLinks(t *testing.T) {
 	f.send("GET", "/browse?dir=/mnt/disk", nil, plain).wantError(t, 403, "admin_required")
 }
 
-// /var as the data disk of Alpine's data mode: the navigator offers it, without its folders of the system (lib, log,
-// cache), and refuses to browse them or to make a folder in them (system_dir).
-func TestBrowseSystemDirs(t *testing.T) {
+// The navigator starts at /, over all disks: it lists etc, home, media and what is below, never /proc, /sys or /dev, opens
+// a folder on another disk below /media, tells the warnings of the folder it shows, makes a folder in /etc, and refuses
+// the kernel folders (kernel).
+func TestBrowseRoot(t *testing.T) {
 	f := newHarness(t)
-	f.write("/proc/mounts", "/dev/sda1 / ext4 rw 0 0\n/dev/sdb1 /mnt/disk ext4 rw 0 0\n/dev/sdc1 /var ext4 rw 0 0\n")
-	for _, d := range []string{"/var/lib/postgresql", "/var/log", "/var/cache/apk", "/var/daten"} {
+	f.write("/proc/mounts", "/dev/sda1 / ext4 rw 0 0\nproc /proc proc rw 0 0\n/dev/sdb1 /mnt/disk ext4 rw 0 0\n/dev/sdc1 /media/usb vfat rw 0 0\n")
+	for _, d := range []string{"/home/myUser", "/media/usb/photos", "/sys/fs", "/dev/shm", "/var/lib"} {
 		f.mkdir(d)
 	}
-	got := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/var", nil, admin).want(t, 200))
-	if want := []EntryView{{Name: "daten"}}; !reflect.DeepEqual(got.Entries, want) {
-		t.Errorf("browse /var: %+v, want %+v", got.Entries, want)
+	names := func(r BrowseResponse) []string {
+		var out []string
+		for _, e := range r.Entries {
+			out = append(out, e.Name)
+		}
+		return out
 	}
-	for _, dir := range []string{"/var/lib", "/var/lib/postgresql", "/var/log", "/var/cache"} {
+	got := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/", nil, admin).want(t, 200))
+	for _, want := range []string{"etc", "home", "media", "mnt", "var"} {
+		if !slices.Contains(names(got), want) {
+			t.Errorf("browse /: %v lacks %s", names(got), want)
+		}
+	}
+	for _, kernel := range []string{"proc", "sys", "dev"} {
+		if slices.Contains(names(got), kernel) {
+			t.Errorf("browse /: %v lists %s", names(got), kernel)
+		}
+	}
+	warn := []string{"system", "root_owned", "holds_mount"}
+	if os.Getuid() != 0 {
+		warn = []string{"system", "holds_mount"}
+	}
+	if !reflect.DeepEqual(got.Warnings, warn) {
+		t.Errorf("warnings of /: %v, want %v", got.Warnings, warn)
+	}
+	usb := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/media/usb", nil, admin).want(t, 200))
+	if want := []string{"photos"}; !reflect.DeepEqual(names(usb), want) {
+		t.Errorf("browse /media/usb: %v, want %v", names(usb), want)
+	}
+	if home := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/home/myUser", nil, admin).want(t, 200)); len(home.Warnings) != 0 || home.Warnings == nil {
+		t.Errorf("warnings of /home/myUser: %#v, want none ([])", home.Warnings)
+	}
+	if etc := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/etc", nil, admin).want(t, 200)); len(etc.Warnings) == 0 || etc.Warnings[0] != "system" {
+		t.Errorf("warnings of /etc: %v", etc.Warnings)
+	}
+	f.send("POST", "/browse/mkdir", map[string]string{"dir": "/etc", "name": "Neu"}, admin).want(t, 200)
+	if st, err := os.Stat(f.path("/etc/Neu")); err != nil || !st.IsDir() {
+		t.Errorf("the folder in /etc: %v, %v", st, err)
+	}
+	for _, dir := range []string{"/proc", "/sys", "/sys/fs", "/dev", "/dev/shm"} {
 		e := f.send("GET", "/browse?dir="+dir, nil, admin).wantError(t, 400, "invalid_input")
-		if e["field"] != "dir" || e["reason"] != "system_dir" {
-			t.Errorf("browse %s: %v, want the reason system_dir", dir, e)
+		if e["field"] != "dir" || e["reason"] != "kernel" {
+			t.Errorf("browse %s: %v, want the reason kernel", dir, e)
 		}
 		e = f.send("POST", "/browse/mkdir", map[string]string{"dir": dir, "name": "Neu"}, admin).wantError(t, 400, "invalid_input")
-		if e["field"] != "dir" || e["reason"] != "system_dir" {
-			t.Errorf("mkdir in %s: %v, want the reason system_dir", dir, e)
-		}
-		if _, err := os.Stat(f.path(dir + "/Neu")); err == nil {
-			t.Errorf("a folder was made in %s", dir)
+		if e["field"] != "dir" || e["reason"] != "kernel" {
+			t.Errorf("mkdir in %s: %v, want the reason kernel", dir, e)
 		}
 	}
-	f.send("POST", "/browse/mkdir", map[string]string{"dir": "/var/daten", "name": "Neu"}, admin).want(t, 200)
+}
+
+// The navigator gives the boot medium the system warning too (paths.WarningsFor): a medium below /media that holds apks/.
+func TestBrowseBootMedium(t *testing.T) {
+	f := newHarness(t)
+	f.write("/proc/mounts", "/dev/sda1 / ext4 rw 0 0\n/dev/sdb1 /mnt/disk ext4 rw 0 0\n/dev/sdc1 /media/usb vfat rw 0 0\n/dev/sdd1 /media/other vfat rw 0 0\n")
+	f.mkdir("/media/usb/apks")
+	f.mkdir("/media/other/photos")
+	usb := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/media/usb", nil, admin).want(t, 200))
+	if !reflect.DeepEqual(usb.Warnings, []string{"system"}) {
+		t.Errorf("warnings of the boot medium: %v, want [system]", usb.Warnings)
+	}
+	other := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/media/other", nil, admin).want(t, 200))
+	if len(other.Warnings) != 0 {
+		t.Errorf("warnings of another medium: %v, want none", other.Warnings)
+	}
 }
 
 // "Neuer Ordner" makes the folder with the owner and the group of its parent, mode 0755, and only below a data disk and
@@ -93,7 +143,7 @@ func TestMkdir(t *testing.T) {
 	if err := os.Symlink("more", f.path("/mnt/disk/link")); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []struct{ dir, reason string }{{"/mnt/disk/link", "link"}, {"/etc", "no_data_mount"}} {
+	for _, c := range []struct{ dir, reason string }{{"/mnt/disk/link", "link"}, {"/proc", "kernel"}, {"/dev", "kernel"}} {
 		e := f.send("POST", "/browse/mkdir", map[string]string{"dir": c.dir, "name": "Neu2"}, admin).wantError(t, 400, "invalid_input")
 		if e["field"] != "dir" || e["reason"] != c.reason {
 			t.Errorf("%s: %v", c.dir, e)
@@ -274,5 +324,42 @@ func TestMkdirBelowRoot(t *testing.T) {
 	}
 	if want := "/mnt/disk/Neu2 755 " + share[2] + ":103"; made[len(made)-1] != want {
 		t.Errorf("made %v, want %q last", made, want)
+	}
+}
+
+// "Neuer Ordner" at or below a mount point of /etc/fstab whose disk is not mounted is refused (not_mounted, field dir): the
+// folder would land on the system disk.
+func TestMkdirNotMounted(t *testing.T) {
+	f := newHarness(t)
+	f.write("/etc/fstab", "/dev/sda1 / ext4 defaults 0 1\n/dev/sdb1 /mnt/disk ext4 defaults 0 2\n/dev/sdc1 /mnt/backup ext4 noauto 0 2\n")
+	f.mkdir("/mnt/backup/x")
+	for _, dir := range []string{"/mnt/backup", "/mnt/backup/x"} {
+		e := f.send("POST", "/browse/mkdir", map[string]string{"dir": dir, "name": "Neu"}, admin).wantError(t, 400, "invalid_input")
+		if e["field"] != "dir" || e["reason"] != "not_mounted" {
+			t.Errorf("mkdir in %s: %v", dir, e)
+		}
+	}
+	f.send("POST", "/browse/mkdir", map[string]string{"dir": "/mnt/disk/more", "name": "Neu"}, admin).want(t, 200)
+}
+
+// The folder lists leave out a folder that is a kernel folder (paths.Kernel) at any depth: the mount point of an
+// rpc_pipefs below /var, in the navigator and in the folder tree of a share.
+func TestListsHideKernelMounts(t *testing.T) {
+	f := newHarness(t)
+	f.write("/proc/mounts", "/dev/sda1 / ext4 rw 0 0\n/dev/sdb1 /mnt/disk ext4 rw 0 0\nrpc_pipefs /var/lib/nfs/rpc_pipefs rpc_pipefs rw 0 0\n")
+	f.mkdir("/var/lib/nfs/rpc_pipefs")
+	f.mkdir("/var/lib/nfs/state")
+	got := decodeAs[BrowseResponse](t, f.send("GET", "/browse?dir=/var/lib/nfs", nil, admin).want(t, 200))
+	if len(got.Entries) != 1 || got.Entries[0].Name != "state" {
+		t.Errorf("browse: %+v", got.Entries)
+	}
+	rootID, err := paths.FsidOf(host.FS{Root: f.root}, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.config(samba.Share{Name: "Var", Path: "/var", Mount: "/", Fsid: rootID, Rights: map[string]samba.Right{"anna": samba.Read}})
+	folders := decodeAs[FoldersResponse](t, f.send("GET", "/folders?share=Var&dir=lib/nfs", nil, admin).want(t, 200))
+	if len(folders.Entries) != 1 || folders.Entries[0].Name != "state" {
+		t.Errorf("folders: %+v", folders.Entries)
 	}
 }

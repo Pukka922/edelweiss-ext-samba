@@ -17,6 +17,7 @@ import (
 	"github.com/Pukka922/edelweiss-ext-samba/internal/accounts"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/acl"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/actions"
+	"github.com/Pukka922/edelweiss-ext-samba/internal/host"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/paths"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/recycle"
 	"github.com/Pukka922/edelweiss-ext-samba/internal/safefs"
@@ -26,21 +27,24 @@ import (
 // The reasons of an invalid_input of a folder, as internal/actions gives them for the path of a share.
 const (
 	reasonNotAbsolute = "not_absolute"  // not an absolute, clean path
-	reasonNoDataMount = "no_data_mount" // on no data disk
+	reasonNoDataMount = "no_data_mount" // the disk of the folder changed under the request, or is on no mount a share can be on
+	reasonKernel      = "kernel"        // /proc, /sys, /dev or below, or on a pseudo file system (paths.Kernel)
+	reasonNotMounted  = "not_mounted"   // at or below a mount point of /etc/fstab that is not mounted now (paths.NotMounted)
 	reasonLink        = "link"          // a symbolic link on the way, or the folder itself
 	reasonNotDir      = "not_dir"       // no folder
-	reasonSystemDir   = "system_dir"    // a folder of the system (paths.SystemDir), also below a data disk
 	reasonInShare     = "in_share"      // "Neuer Ordner" in the folder of a share (details share): it could never be shared
 )
 
 // BrowseResponse is the answer of GET /browse: the folders in Dir (at most paths.MaxEntries; Truncated when there are
-// more), the owner of Dir, which a new share of it would run as, and the share whose folder Dir is or is in (InShare):
-// "Neuer Ordner" is refused there (in_share).
+// more), the owner of Dir, which a new share of it would run as, the warnings for a share of Dir (paths.WarningsFor: system,
+// root_owned, holds_mount, ram; empty for none), and the share whose folder Dir is or is in (InShare): "Neuer Ordner" is
+// refused there (in_share).
 type BrowseResponse struct {
 	Dir       string      `json:"dir"`
 	Entries   []EntryView `json:"entries"`
 	Truncated bool        `json:"truncated"`
 	Owner     OwnerView   `json:"owner"`
+	Warnings  []string    `json:"warnings"`
 	InShare   string      `json:"inShare,omitempty"`
 }
 
@@ -50,34 +54,36 @@ type EntryView struct {
 	HasChildren bool   `json:"hasChildren"`
 }
 
-// onDataDisk refuses a folder that is not an absolute, clean path, whose innermost mount is no data disk
-// (paths.DataMounts of this moment: a disk that is unplugged is none, and nothing is read or made on its mount point), or
-// that is a folder of the system on a data disk (paths.SystemDir: /var/lib on the /var of Alpine's data mode). It returns
-// the file system of that data disk (paths.FsidOf), which a change below it expects (safefs.Root.OnDisk).
-func (a *API) onDataDisk(field, p string) (fsid string, err error) {
+// onShareDisk refuses a folder that is not an absolute, clean path, that is a kernel folder (paths.Kernel: reason kernel),
+// or whose innermost mount is none that a share can be on (paths.ShareMounts of this moment). Any other folder of any
+// disk is allowed, the system's included. A disk that is unplugged has no mount, so its mount point counts as a folder of
+// the disk below it; the routes that write there ask paths.NotMounted as well (mkdir: reason not_mounted). It returns the
+// file system of that mount (paths.FsidOf), which a change below it expects (safefs.Root.OnDisk), and the mounts that
+// were read.
+func (a *API) onShareDisk(field, p string) (fsid string, mounts []host.Mount, err error) {
 	if !path.IsAbs(p) || path.Clean(p) != p {
-		return "", invalidFor(field, reasonNotAbsolute, fmt.Sprintf("%q is not an absolute, clean path", p))
+		return "", nil, invalidFor(field, reasonNotAbsolute, fmt.Sprintf("%q is not an absolute, clean path", p))
 	}
 	fsys := a.fs()
-	mounts, err := fsys.Mounts()
+	mounts, err = fsys.Mounts()
 	if err != nil {
-		return "", failed("reading the mounts: %v", err)
+		return "", nil, failed("reading the mounts: %v", err)
 	}
-	data, err := paths.DataMounts(fsys, a.statfs())
+	if paths.Kernel(mounts, p) {
+		return "", nil, invalidFor(field, reasonKernel, p+" is an interface to the kernel")
+	}
+	data, err := paths.ShareMounts(fsys, a.statfs())
 	if err != nil {
-		return "", failed("reading the data disks: %v", err)
+		return "", nil, failed("reading the disks: %v", err)
 	}
 	point := paths.MountOf(mounts, p)
-	if !slices.ContainsFunc(data, func(m paths.DataMount) bool { return m.Point == point }) {
-		return "", invalidFor(field, reasonNoDataMount, p+" is on no data disk")
-	}
-	if paths.SystemDir(p) {
-		return "", invalidFor(field, reasonSystemDir, p+" is a folder of the system")
+	if !slices.ContainsFunc(data, func(m paths.ShareMount) bool { return m.Point == point }) {
+		return "", nil, invalidFor(field, reasonNoDataMount, p+" is on no disk a share can be on")
 	}
 	if fsid, err = paths.FsidOf(fsys, point); err != nil {
-		return "", invalidFor(field, reasonNoDataMount, fmt.Sprintf("%s: %v", p, err))
+		return "", nil, invalidFor(field, reasonNoDataMount, fmt.Sprintf("%s: %v", p, err))
 	}
-	return fsid, nil
+	return fsid, mounts, nil
 }
 
 // shareOf is the share of the config (as it is on the disk now) whose folder is dir or holds it, "" for none.
@@ -112,11 +118,12 @@ func dirError(field, p string, err error) error {
 	return failed("%v", err)
 }
 
-// browse answers GET /browse?dir= (admin mode): the navigator over the data disks. Links are not listed, and no folder is
+// browse answers GET /browse?dir= (admin mode): the navigator over the whole tree, all disks. Links are not listed, and no folder is
 // opened through one.
 func (a *API) browse(c fiber.Ctx) error {
 	dir := strings.Clone(c.Query("dir"))
-	if _, err := a.onDataDisk("dir", dir); err != nil {
+	_, mounts, err := a.onShareDisk("dir", dir)
+	if err != nil {
 		return err
 	}
 	inShare, err := a.shareOf(dir)
@@ -142,21 +149,25 @@ func (a *API) browse(c fiber.Ctx) error {
 		return dirError("dir", dir, err)
 	}
 	resp := BrowseResponse{Dir: dir, Entries: []EntryView{}, Truncated: truncated,
-		Owner: OwnerView{UID: o.UID, GID: o.GID, User: o.User, Group: o.Group}, InShare: inShare}
+		Owner: OwnerView{UID: o.UID, GID: o.GID, User: o.User, Group: o.Group}, InShare: inShare,
+		Warnings: append([]string{}, paths.WarningsFor(a.fs(), mounts, dir, o.UID)...)}
 	for _, e := range entries {
+		if paths.Kernel(mounts, path.Join(dir, e.Name)) {
+			continue // the mount point of an rpc_pipefs, for example
+		}
 		resp.Entries = append(resp.Entries, EntryView{Name: e.Name, HasChildren: e.HasChildren})
 	}
 	return c.JSON(resp)
 }
 
-// mkdir answers POST /browse/mkdir {dir, name} (admin mode): "Neuer Ordner" in a folder of a data disk, reached through no
-// link. The new folder (0755) gets the owner and the group of its parent; below a parent of root it gets the account
+// mkdir answers POST /browse/mkdir {dir, name} (admin mode): "Neuer Ordner" in a folder of any disk (no kernel folder), reached
+// through no link. The new folder (0755) gets the owner and the group of its parent; below a parent of root it gets the account
 // edelweiss-share and its group instead (made once, accounts.EnsureShareAccount), so that Samba never writes as root.
 // That account change takes the job lock first, as every account change does (busy while a job runs, whose own lbu
 // commit would run beside the one of the account); a folder below a parent of a user needs no lock. A folder of that
 // name is exists. In the folder of a share, or below it, no folder is made (in_share, with the share): no share could
 // ever be made of it (in_use), and a share with folder rights would give it no rights of its own. The folder is made on
-// the data disk that was checked (safefs.Root.OnDisk): a parent on another file system is refused.
+// the disk that was checked (safefs.Root.OnDisk): a parent on another file system is refused.
 func (a *API) mkdir(c fiber.Ctx) error {
 	var req struct {
 		Dir  string `json:"dir"`
@@ -165,9 +176,12 @@ func (a *API) mkdir(c fiber.Ctx) error {
 	if err := decode(c, &req); err != nil {
 		return err
 	}
-	fsid, err := a.onDataDisk("dir", req.Dir)
+	fsid, mounts, err := a.onShareDisk("dir", req.Dir)
 	if err != nil {
 		return err
+	}
+	if point, bad := paths.NotMounted(a.fs(), mounts, req.Dir); bad {
+		return invalidFor("dir", reasonNotMounted, fmt.Sprintf("%s belongs to the disk of %s in /etc/fstab, which is not mounted", req.Dir, point))
 	}
 	if err := paths.ValidDirName(req.Name); err != nil {
 		return invalid("name", "%v", err)
@@ -287,6 +301,13 @@ func (a *API) folders(c fiber.Ctx) error {
 	if err := acl.ValidFolder(dir); err != nil {
 		return invalid("dir", "%v", err)
 	}
+	mounts, err := a.fs().Mounts()
+	if err != nil {
+		return failed("reading the mounts: %v", err)
+	}
+	if abs := path.Join(sh.Path, dir); paths.Kernel(mounts, abs) {
+		return invalidFor("dir", reasonKernel, abs+" is an interface to the kernel")
+	}
 	if ok, _ := paths.Available(a.fs(), sh); !ok {
 		return refuse(actions.CodeUnavailable, fmt.Sprintf("the disk of the share %q is not there", sh.Name), map[string]any{"share": sh.Name})
 	}
@@ -307,7 +328,7 @@ func (a *API) folders(c fiber.Ctx) error {
 		From: actions.RightsFrom(sh, dir), Rights: actions.Effective(sh, dir), Max: actions.Effective(sh, actions.ParentFolder(dir))}
 	_, resp.Own = sh.Folders[dir] // the share's folder ("") has the share's rights, never a folder right
 	for _, e := range entries {
-		if dir == "" && e.Name == recycle.Dir {
+		if dir == "" && e.Name == recycle.Dir || paths.Kernel(mounts, path.Join(full, e.Name)) {
 			continue
 		}
 		_, own := sh.Folders[path.Join(dir, e.Name)]

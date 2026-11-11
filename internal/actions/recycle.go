@@ -25,6 +25,9 @@ func buildRecycleRestore(p *plan, r Request) (jobs.Spec, error) {
 	if !validItem(r.Item) {
 		return jobs.Spec{}, invalid("item", "%q is no item of a recycle bin: a clean path below #recycle, as the bin lists it", r.Item)
 	}
+	if err := p.notKernel(sh, r.Item, "item"); err != nil {
+		return jobs.Spec{}, err
+	}
 	if err := p.available(sh); err != nil {
 		return jobs.Spec{}, err
 	}

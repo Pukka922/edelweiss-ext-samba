@@ -33,7 +33,7 @@ export const GB = 1000 ** 3;
 /** The owner ben:users (1000:100), who has an account. */
 export const ben = (): OwnerView => ({ uid: 1000, gid: 100, user: "ben", group: "users" });
 
-/** A share of the preview, "Fotos" on the data disk, unless over says otherwise. */
+/** A share of the preview, "Fotos" on a disk of its own, unless over says otherwise. */
 export const share = (over: Partial<ShareView> = {}): ShareView => ({
   name: "Fotos",
   path: "/mnt/daten/Fotos",
@@ -48,6 +48,8 @@ export const share = (over: Partial<ShareView> = {}): ShareView => ({
   available: true,
   reason: "",
   skipped: "",
+  warnings: [],
+  unconfirmed: [],
   owner: ben(),
   recycleBin: { files: 340, bytes: 1.2 * GB, partial: false },
   ...over,
@@ -90,10 +92,11 @@ export const users = (): UserView[] => [
   { name: "tv", kind: "samba", disabled: false },
 ];
 
-/** The data disks of the preview. */
+/** The mounts of the preview: two data disks and the system disk (/), which a share can be on too. */
 export const mounts = (): MountView[] => [
-  { point: "/mnt/daten", type: "ext4", total: 4000 * GB, free: 1200 * GB, xattr: true },
-  { point: "/mnt/usb1", type: "exfat", total: 1000 * GB, free: 400 * GB, xattr: false },
+  { point: "/mnt/daten", type: "ext4", total: 4000 * GB, free: 1200 * GB, xattr: true, ram: false },
+  { point: "/mnt/usb1", type: "exfat", total: 1000 * GB, free: 400 * GB, xattr: false, ram: false },
+  { point: "/", type: "ext4", total: 60 * GB, free: 25 * GB, xattr: true, ram: false },
 ];
 
 const ITEM_IDS = ["config", "samba", "dbus", "avahi", "discovery", "crond", "cleanup_script", "persist"];
@@ -150,6 +153,7 @@ export const browse = (
   entries: names.map((name) => ({ name, hasChildren: false })),
   truncated: false,
   owner: ben(),
+  warnings: [],
   ...over,
 });
 

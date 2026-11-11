@@ -98,12 +98,15 @@ export interface SummaryView {
   partial: boolean;
 }
 
+/** The warnings of a folder (paths.Warnings): the lists carry strings, as the server may know more than the page. */
+export type WarningCode = "system" | "root_owned" | "holds_mount" | "ram";
+
 /** Why the folder of a share cannot be served now (paths.Available). */
-export type ShareReason = "" | "unmounted" | "missing" | "link" | "no_owner";
+export type ShareReason = "" | "unmounted" | "missing" | "link" | "no_owner" | "kernel";
 
 /**
  * A share of the config and its state (ShareView). skipped: why smb.conf leaves it out (samba.Skip*: no_users,
- * no_owner, root_owned, bad_name, case_clash, bad_path), "" for a share that smbd serves. owner and recycleBin only for
+ * no_owner, bad_name, case_clash, bad_path), "" for a share that smbd serves. owner and recycleBin only for
  * a share that is available; recycleBin (the size of the bin) only with the recycle bin (recycle) on.
  */
 export interface ShareView {
@@ -120,6 +123,10 @@ export interface ShareView {
   available: boolean;
   reason: ShareReason;
   skipped: string;
+  /** The warnings of its folder as it is now (WarningCode); root_owned only where the folder is read. */
+  warnings: string[];
+  /** With skipped "unconfirmed": the warnings (system, root_owned) of its folder that it never confirmed; [] otherwise. */
+  unconfirmed: string[];
   owner?: OwnerView;
   recycleBin?: SummaryView;
 }
@@ -149,13 +156,17 @@ export interface HostUserView {
   reason?: string;
 }
 
-/** A data disk (MountView): xattr says that it keeps what the folder rights need. */
+/**
+ * A mount a share can be on (MountView), "/" included: xattr says that it keeps what the folder rights need, ram that it
+ * is in RAM (tmpfs, ramfs, zram).
+ */
 export interface MountView {
   point: string;
   type: string;
   total: number;
   free: number;
   xattr: boolean;
+  ram: boolean;
 }
 
 /** An address of an interface with its prefix (AddrView). */
@@ -207,7 +218,7 @@ export interface EntryView {
 }
 
 /**
- * The answer of GET /browse?dir= (BrowseResponse): the folders in dir, the owner of dir, and the share whose folder dir is
+ * The answer of GET /browse?dir= (BrowseResponse): the folders in dir, the owner of dir, its warnings, and the share whose folder dir is
  * or is in (inShare): "Neuer Ordner" is refused there.
  */
 export interface BrowseResponse {
@@ -216,6 +227,8 @@ export interface BrowseResponse {
   truncated: boolean;
   owner: OwnerView;
   inShare?: string;
+  /** The warnings for a share of dir (WarningCode), in the order of the server: [] for none. */
+  warnings: string[];
 }
 
 /** The answer of POST /browse/mkdir {dir, name}: the path of the new folder. */

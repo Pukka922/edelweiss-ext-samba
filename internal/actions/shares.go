@@ -20,10 +20,11 @@ import (
 // The reasons of an invalid_input of a path or a folder.
 const (
 	reasonNotAbsolute = "not_absolute"  // not an absolute, clean path
-	reasonNoDataMount = "no_data_mount" // on no data mount (paths.DataMounts), or on a mount inside one that is none
+	reasonNoDataMount = "no_data_mount" // on no mount a share can be on: the disk changed under the request (paths.ShareMounts)
+	reasonKernel      = "kernel"        // /proc, /sys, /dev or below, or on a pseudo file system (paths.Kernel)
 	reasonLink        = "link"          // a symbolic link on the way, or the folder itself
 	reasonNotDir      = "not_dir"       // no folder
-	reasonSystemDir   = "system_dir"    // a folder of the system, or one that holds one (paths.SystemDir, HoldsSystemDir)
+	reasonNotMounted  = "not_mounted"   // at or below a mount point of /etc/fstab that is not mounted now (paths.NotMounted)
 	reasonPerUser     = "per_user"      // a share with folder rights keeps its folder
 	// reasonPerUserDisk: a share with folder rights keeps its disk. Another disk at its folder (replaced, formatted again)
 	// has none of the conversion: the folder rights carried onto it would leave new files world-writable, and dropped they
@@ -36,7 +37,7 @@ func buildShareAdd(p *plan, r Request) (jobs.Spec, error) {
 	if r.Share == nil {
 		return jobs.Spec{}, invalid("share", "share-add needs the share")
 	}
-	sh, err := p.checkShare(*r.Share, -1)
+	sh, err := p.checkShare(*r.Share, -1, r.Acknowledge)
 	if err != nil {
 		return jobs.Spec{}, err
 	}
@@ -63,7 +64,14 @@ func buildShareEdit(p *plan, r Request) (jobs.Spec, error) {
 	if r.Share == nil {
 		return jobs.Spec{}, invalid("share", "share-edit needs the share")
 	}
-	sh, err := p.checkShare(*r.Share, i)
+	// An edit that keeps the folder of a share whose disk is not mounted would record the mount point of the system disk
+	// and serve its empty mount point: it is refused while the recorded mount point is not the mount that holds the
+	// folder. Another disk mounted at that point (replaced, formatted again) is recorded again, as before; another folder
+	// is judged as a new one (checkShare).
+	if r.Share.Path == old.Path && (old.Mount == "" || paths.MountOf(p.env.Mounts, old.Path) != old.Mount) {
+		return jobs.Spec{}, newError(CodeUnavailable, "the disk of the share %q is not there", old.Name).with("share", old.Name)
+	}
+	sh, err := p.checkShare(*r.Share, i, r.Acknowledge)
 	if err != nil {
 		return jobs.Spec{}, err
 	}
@@ -116,12 +124,14 @@ func buildShareDelete(p *plan, r Request) (jobs.Spec, error) {
 // checkShare checks the share of a request that is added (self -1) or replaces the share at self, and returns it as the
 // config keeps it. The objects it names: its users have to be Samba users (with a SID), its folder has to be there. The
 // rules: the name (samba.ValidShareName) is not taken, in any case, by another share; the rights are "", read or write;
-// the folder is an absolute, clean path below a data mount (the innermost mount that holds it is one), reached through
-// no link; it is not inside the folder of another share and holds none (in_use); its owner is not root (Samba would
-// write as root) and has an account (no_owner); the days of a recycle bin are 1 to 3650 (30 when none are given). The
-// mount point and the file system of the folder are recorded (paths.MountOf, paths.FsidOf); rights without a right are
-// left out.
-func (p *plan) checkShare(in samba.Share, self int) (samba.Share, error) {
+// the folder is an absolute, clean path on a mount that a share can be on (paths.ShareMounts), no kernel folder
+// (paths.Kernel: invalid_input, reason kernel), reached through no link; it is not inside the folder of another share and
+// holds none (in_use); its owner has an account (no_owner), root's included; the days of a recycle bin are 1 to 3650 (30
+// when none are given); and a folder that has warnings (paths.Warnings) needs every one of them in acknowledge
+// (confirm_needed, details warnings: all of the folder's), and the share records them as confirmed (Share.Acknowledged).
+// The mount point and the file system of the folder are recorded (paths.MountOf, paths.FsidOf); rights without a right
+// are left out.
+func (p *plan) checkShare(in samba.Share, self int, acknowledge []string) (samba.Share, error) {
 	if err := p.checkUsers(in.Rights); err != nil {
 		return samba.Share{}, err
 	}
@@ -129,7 +139,7 @@ func (p *plan) checkShare(in samba.Share, self int) (samba.Share, error) {
 	var owner paths.Ownership
 	var ownerErr error
 	if clean {
-		owner, ownerErr = paths.OwnerOf(p.root, in.Path, p.env.DB)
+		owner, ownerErr = p.ownerOf(in.Path)
 		if errors.Is(ownerErr, fs.ErrNotExist) {
 			return samba.Share{}, notFound("the folder %s is not there", in.Path).with("path", in.Path)
 		}
@@ -153,12 +163,18 @@ func (p *plan) checkShare(in samba.Share, self int) (samba.Share, error) {
 	if !clean {
 		return samba.Share{}, invalidPath(reasonNotAbsolute, "%q is not an absolute, clean path", in.Path)
 	}
-	mount := paths.MountOf(p.env.Mounts, in.Path)
-	if _, ok := p.dataMount(mount); !ok {
-		return samba.Share{}, invalidPath(reasonNoDataMount, "%s is on no data disk", in.Path)
+	if paths.Kernel(p.env.Mounts, in.Path) {
+		return samba.Share{}, invalidPath(reasonKernel, "%s is an interface to the kernel", in.Path)
 	}
-	if paths.SystemDir(in.Path) || paths.HoldsSystemDir(in.Path) {
-		return samba.Share{}, invalidPath(reasonSystemDir, "%s is a folder of the system, or holds one", in.Path)
+	if paths.KernelBelow(p.env.Mounts, in.Path) {
+		return samba.Share{}, invalidPath(reasonKernel, "%s holds an interface to the kernel that is mounted below it", in.Path)
+	}
+	if point, bad := paths.NotMounted(p.env.FS, p.env.Mounts, in.Path); bad {
+		return samba.Share{}, invalidPath(reasonNotMounted, "%s belongs to the disk of %s in /etc/fstab, which is not mounted", in.Path, point)
+	}
+	mount := paths.MountOf(p.env.Mounts, in.Path)
+	if _, ok := p.shareMount(mount); !ok {
+		return samba.Share{}, invalidPath(reasonNoDataMount, "%s is on no disk a share can be on", in.Path)
 	}
 	var link *safefs.LinkError
 	switch {
@@ -179,9 +195,6 @@ func (p *plan) checkShare(in samba.Share, self int) (samba.Share, error) {
 		slices.Sort(nested)
 		return samba.Share{}, newError(CodeInUse, "%s is inside the folder of a share, or holds one", in.Path).with("shares", nested)
 	}
-	if owner.UID == 0 {
-		return samba.Share{}, newError(CodeRootOwned, "%s belongs to root: make a folder of its own for the share (Neuer Ordner)", in.Path)
-	}
 	if owner.User == "" || owner.Group == "" {
 		return samba.Share{}, newError(CodeNoOwner, "the owner %d:%d of %s has no account", owner.UID, owner.GID, in.Path).
 			with("uid", owner.UID).with("gid", owner.GID)
@@ -196,12 +209,16 @@ func (p *plan) checkShare(in samba.Share, self int) (samba.Share, error) {
 			return samba.Share{}, invalid("recycleDays", "the recycle bin keeps files %d to %d days, not %d", recycle.MinDays, recycle.MaxDays, days)
 		}
 	}
+	warnings := paths.WarningsFor(p.env.FS, p.env.Mounts, in.Path, owner.UID)
+	if slices.ContainsFunc(warnings, func(w string) bool { return !slices.Contains(acknowledge, w) }) {
+		return samba.Share{}, newError(CodeConfirmNeeded, "%s needs a confirmation: %s", in.Path, strings.Join(warnings, ", ")).with("warnings", warnings)
+	}
 	fsid, err := paths.FsidOf(p.env.FS, mount)
 	if err != nil {
 		return samba.Share{}, failed("%v", err)
 	}
 	return samba.Share{Name: in.Name, Path: in.Path, Comment: in.Comment, Mount: mount, Fsid: fsid, Rights: cleanRights(in.Rights),
-		Hidden: in.Hidden, Recycle: in.Recycle, RecycleDays: days}, nil
+		Hidden: in.Hidden, Recycle: in.Recycle, RecycleDays: days, Acknowledged: warnings}, nil
 }
 
 // below reports whether the clean path p is below the clean directory dir.

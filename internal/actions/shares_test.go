@@ -90,7 +90,8 @@ func TestShareAddRefusesLinkPath(t *testing.T) {
 		{"/mnt/disk/link", "link"},
 		{"/mnt/disk/link/sub", "link"},
 		{"/mnt/disk/data/file.txt", "not_dir"},
-		{"/etc/samba", "no_data_mount"},
+		{"/proc", "kernel"},
+		{"/proc/mounts", "kernel"},
 		{"mnt/disk/data", "not_absolute"},
 		{"/mnt/disk/data/", "not_absolute"},
 		{"/mnt/disk/data/../data", "not_absolute"},
@@ -108,8 +109,7 @@ func TestShareAddRefusesLinkPath(t *testing.T) {
 	}
 }
 
-// The owner of the folder needs an account (the UI offers a service account then); a folder of root is refused, so that
-// Samba never writes as root.
+// The owner of the folder needs an account (the UI offers a service account then).
 func TestShareAddNoOwner(t *testing.T) {
 	f := newFixture(t)
 	f.env.DB = &accounts.DB{}
@@ -117,41 +117,90 @@ func TestShareAddNoOwner(t *testing.T) {
 	code(t, e, actions.CodeNoOwner, map[string]any{"uid": os.Getuid(), "gid": os.Getgid()})
 	f.env.DB = &accounts.DB{Users: []accounts.User{{Name: "myUser", UID: os.Getuid()}}}
 	code(t, f.refused(addFotos(samba.Share{Name: "Fotos", Path: "/mnt/disk/data"})), actions.CodeNoOwner, map[string]any{"gid": os.Getgid()})
-
-	// a folder of root: the real /home, as it were a data disk
-	st, err := os.Stat("/home")
-	if err != nil || ownerUID(st) != 0 {
-		t.Skip("no /home of root here")
-	}
-	f.env.FS = host.FS{Root: "/"}
-	f.env.Mounts = []host.Mount{{Device: "/dev/sda1", Point: "/home", Type: "ext4"}}
-	f.env.Data = []paths.DataMount{{Point: "/home", Type: "ext4", Xattr: true}}
-	f.env.DB = &accounts.DB{Users: []accounts.User{{Name: "root"}}, Groups: []accounts.Group{{Name: "root"}}}
-	code(t, f.refused(addFotos(samba.Share{Name: "Root", Path: "/home"})), actions.CodeRootOwned, nil)
 }
 
-// A folder of the system below a data disk is refused (system_dir): /var is the data disk of Alpine's data mode, and its
-// lib, log and cache are not, nor what is below them, nor /var itself, which holds them. Its other folders are data.
-func TestShareAddRefusesSystemDir(t *testing.T) {
+// rootFixture is the fixture where /etc belongs to root (asRoot), whoever runs the test.
+func rootFixture(t *testing.T) *fixture {
+	t.Helper()
 	f := newFixture(t)
-	for _, d := range []string{"var/lib/postgresql", "var/log", "var/cache/apk", "var/daten"} {
+	f.asRoot("/etc")
+	return f
+}
+
+// A share with a warning (a folder of the system, of root, with a mount below it, in RAM) needs acknowledge in the create
+// and the edit; without it the answer is confirm_needed with the warnings, and nothing is planned. With it the share is
+// accepted, root-owned ones included.
+func TestShareNeedsAcknowledge(t *testing.T) {
+	f := rootFixture(t)
+	rights := map[string]samba.Right{"anna": samba.Write}
+	sh := samba.Share{Name: "Etc", Path: "/etc", Rights: rights}
+	e := f.refused(addFotos(sh))
+	code(t, e, actions.CodeConfirmNeeded, map[string]any{"warnings": []string{"system", "root_owned"}})
+	req := addFotos(sh)
+	// every warning the folder has has to be in the list, not just some
+	req.Acknowledge = []string{"system"}
+	code(t, f.refused(req), actions.CodeConfirmNeeded, map[string]any{"warnings": []string{"system", "root_owned"}})
+	req.Acknowledge = []string{"root_owned", "ram", "system"}
+	spec := f.plan(req)
+	if got := written(t, spec).Shares; len(got) != 1 || got[0].Path != "/etc" || got[0].Mount != "/" ||
+		!reflect.DeepEqual(got[0].Acknowledged, []string{"system", "root_owned"}) {
+		t.Errorf("config %+v", got)
+	}
+
+	// the edit of a share that has a warning needs it again; one that has none does not
+	f.with(samba.Share{Name: "Etc", Path: "/etc", Mount: "/", Fsid: written(t, spec).Shares[0].Fsid, Rights: rights})
+	edit := actions.Request{Kind: "share-edit", Name: "Etc", Share: &samba.Share{Name: "Etc", Path: "/etc", Comment: "neu", Rights: rights}}
+	code(t, f.refused(edit), actions.CodeConfirmNeeded, map[string]any{"warnings": []string{"system", "root_owned"}})
+	edit.Acknowledge = []string{"system", "root_owned"}
+	if got := written(t, f.plan(edit)).Shares; len(got) != 1 || !reflect.DeepEqual(got[0].Acknowledged, []string{"system", "root_owned"}) {
+		t.Errorf("the edit does not store the confirmation: %+v", got)
+	}
+
+	// the warnings also hold for a folder that holds a mount, and one in RAM
+	f = newFixture(t)
+	f.env.Mounts = append(f.env.Mounts, host.Mount{Device: "/dev/sdd1", Point: "/mnt/disk/data/sub", Type: "ext4"})
+	code(t, f.refused(addFotos(samba.Share{Name: "Fotos", Path: "/mnt/disk/data", Rights: rights})), actions.CodeConfirmNeeded,
+		map[string]any{"warnings": []string{"holds_mount"}})
+	f = newFixture(t)
+	f.env.Mounts = append(f.env.Mounts, host.Mount{Device: "tmpfs", Point: "/mnt/ram", Type: "tmpfs"})
+	f.env.Data = append(f.env.Data, paths.ShareMount{Point: "/mnt/ram", Type: "tmpfs", Ram: true})
+	put(t, f.root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\ntmpfs /mnt/ram tmpfs rw 0 0\n")
+	if err := os.MkdirAll(filepath.Join(f.root, "mnt/ram/x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code(t, f.refused(addFotos(samba.Share{Name: "Ram", Path: "/mnt/ram/x", Rights: rights})), actions.CodeConfirmNeeded,
+		map[string]any{"warnings": []string{"ram"}})
+}
+
+// /proc, /sys and /dev, and anything below, are no folder of a share, acknowledged or not.
+func TestShareKernelRefused(t *testing.T) {
+	f := newFixture(t)
+	for _, d := range []string{"sys/fs", "dev/shm"} {
 		if err := os.MkdirAll(filepath.Join(f.root, d), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	put(t, f.root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\n/dev/sdb1 /mnt/disk ext4 rw 0 0\n/dev/sdd1 /var ext4 rw 0 0\n")
-	f.env.Mounts = append(f.env.Mounts, host.Mount{Device: "/dev/sdd1", Point: "/var", Type: "ext4"})
-	f.env.Data = append(f.env.Data, paths.DataMount{Point: "/var", Type: "ext4", Xattr: true})
-	rights := map[string]samba.Right{"anna": samba.Write}
-	for _, p := range []string{"/var/lib", "/var/lib/postgresql", "/var/log", "/var/cache/apk", "/var"} {
-		e := f.refused(addFotos(samba.Share{Name: "Fotos", Path: p, Rights: rights}))
-		code(t, e, actions.CodeInvalidInput, map[string]any{"reason": "system_dir"})
+	for _, p := range []string{"/proc", "/sys", "/sys/fs", "/dev", "/dev/shm"} {
+		req := addFotos(samba.Share{Name: "Fotos", Path: p, Rights: map[string]samba.Right{"anna": samba.Write}})
+		req.Acknowledge = []string{"system", "root_owned"}
+		e := f.refused(req)
+		code(t, e, actions.CodeInvalidInput, map[string]any{"reason": "kernel"})
 		if e.Field != "path" {
 			t.Errorf("%s: field %q", p, e.Field)
 		}
 	}
-	if _, err := f.build(addFotos(samba.Share{Name: "Fotos", Path: "/var/daten", Rights: rights})); err != nil {
-		t.Errorf("/var/daten: %v", err)
+}
+
+// A share of 0.1.0 (on a data disk, in a folder of its user) is no risky folder: its edit needs no acknowledge, and the
+// plan is the one of 0.1.0.
+func TestOldShareUnchanged(t *testing.T) {
+	f := newFixture(t)
+	f.with(f.fotos())
+	spec := f.plan(actions.Request{Kind: "share-edit", Name: "Fotos", Share: &samba.Share{Name: "Fotos", Path: "/mnt/disk/data",
+		Comment: "neu", Rights: map[string]samba.Right{"anna": samba.Write}}})
+	same(t, "share-edit", describe(spec.Steps), []string{writeStaged, testparm, shareACL("Fotos", annaWrite), writeConfig, writeConf, reload})
+	if got := written(t, spec).Shares; len(got) != 1 || got[0].Comment != "neu" || got[0].Mount != "/mnt/disk" {
+		t.Errorf("config %+v", got)
 	}
 }
 
@@ -223,7 +272,7 @@ func TestShareRecycleDays(t *testing.T) {
 func TestShareEdit(t *testing.T) {
 	f := newFixture(t)
 	old := f.fotos()
-	old.Fsid = "ext4:0000000000000000" // the disk was formatted again: the edit records the new one
+	old.Fsid = "ext4:0000000000000000" // the disk was formatted again, and is mounted at its point: the edit records the new one
 	f.with(old)
 	sh := f.fotos()
 	sh.Name = "Bilder"
@@ -233,6 +282,12 @@ func TestShareEdit(t *testing.T) {
 	}
 	if !reflect.DeepEqual(spec.Uses, []string{"share:Bilder", "share:Fotos"}) || spec.Target != "Bilder" {
 		t.Errorf("uses %v, target %q", spec.Uses, spec.Target)
+	}
+	// another folder is judged as a new one, and records the disk as it is now
+	sh.Path = "/mnt/disk/more"
+	spec = f.plan(actions.Request{Kind: "share-edit", Name: "Fotos", Share: &sh})
+	if got := written(t, spec).Shares; len(got) != 1 || got[0].Name != "Bilder" || got[0].Fsid != f.fsid || got[0].Path != "/mnt/disk/more" {
+		t.Errorf("moved: %+v", got)
 	}
 
 	per := f.fotos()
@@ -285,7 +340,7 @@ func TestShareEdit(t *testing.T) {
 
 	// the folder of the share has to be there for an edit (its disk is recorded again)
 	gone := samba.Share{Name: "Weg", Path: "/mnt/disk/gone", Mount: "/mnt/disk", Fsid: f.fsid, Rights: per.Rights}
-	f.with(gone)
+	f.with(samba.Share{Name: "Weg", Path: "/mnt/disk/data", Mount: "/mnt/disk", Fsid: f.fsid, Rights: per.Rights})
 	code(t, f.refused(actions.Request{Kind: "share-edit", Name: "Weg", Share: &gone}), actions.CodeNotFound, map[string]any{"path": "/mnt/disk/gone"})
 }
 

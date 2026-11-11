@@ -25,10 +25,10 @@ var ErrNoPosixACL = errors.New("the file system takes no POSIX default ACL")
 // probeACLAttr is the attribute the probe writes for the POSIX ACLs (a test sets one that the kernel refuses).
 var probeACLAttr = DefaultACLAttr
 
-// Supported reports whether folder rights can be set on the data mount, and if not, why: ReasonNoXattr when its file
+// Supported reports whether folder rights can be set on the mount, and if not, why: ReasonNoXattr when its file
 // system keeps no extended attributes (m.Xattr), else what probe says (Probe): ErrNoPosixACL is ReasonNoPosixACL, EPERM or
 // EACCES is ReasonNoPrivilege, any other failure ReasonNoXattr.
-func Supported(m paths.DataMount, probe func() error) (ok bool, reason string) {
+func Supported(m paths.ShareMount, probe func() error) (ok bool, reason string) {
 	if !m.Xattr {
 		return false, ReasonNoXattr
 	}

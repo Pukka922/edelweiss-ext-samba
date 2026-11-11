@@ -2,7 +2,7 @@ import { cleanup, fireEvent, waitFor, within } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ShareView, ViewResponse } from "../api";
-import { browse, browseRoute, share, shares, view } from "../test/fixtures";
+import { browse, browseRoute, job, share, shares, view } from "../test/fixtures";
 import { apiError, type Handler, jobRoutes, json, renderExt, settle, stubApi, type } from "../test/render";
 import { ShareDialog } from "./ShareDialog";
 
@@ -17,7 +17,27 @@ const folders = (): Record<string, Handler> => ({
   [browseRoute("/mnt/daten/Fotos")]: () => json(browse("/mnt/daten/Fotos", ["2024"])),
   [browseRoute("/mnt/daten")]: () => json(browse("/mnt/daten", ["Filme", "Fotos"])),
   [browseRoute("/mnt/daten/root")]: () =>
-    json(browse("/mnt/daten/root", [], { owner: { uid: 0, gid: 0, user: "root", group: "root" } })),
+    json(
+      browse("/mnt/daten/root", [], {
+        owner: { uid: 0, gid: 0, user: "root", group: "root" },
+        warnings: ["root_owned"],
+      }),
+    ),
+  [browseRoute("/")]: () =>
+    json(
+      browse("/", ["etc", "mnt"], {
+        owner: { uid: 0, gid: 0, user: "root", group: "root" },
+        warnings: ["system", "root_owned", "holds_mount"],
+      }),
+    ),
+  [browseRoute("/etc")]: () =>
+    json(
+      browse("/etc", [], {
+        owner: { uid: 0, gid: 0, user: "root", group: "root" },
+        warnings: ["system", "root_owned"],
+      }),
+    ),
+  [browseRoute("/run/ram")]: () => json(browse("/run/ram", [], { warnings: ["ram"] })),
 });
 
 const NAME = "Name (so heißt sie im Netzwerk)";
@@ -177,16 +197,266 @@ describe("ShareDialog", () => {
     ).toBeTruthy();
   });
 
-  it("warns of a folder of root, and does not send it", async () => {
+  it("shows every warning of the folder and needs the checkbox", async () => {
     const r = renderDialog();
-    type(r.field(NAME), "Root");
-    type(r.field("Ordner"), "/mnt/daten/root");
+    type(r.field(NAME), "System");
+    type(r.field("Ordner"), "/");
+    const alert = await r.findByRole("alert");
     expect(
-      await r.findByText(
-        "Der Ordner gehört root. Wähle einen eigenen Ordner oder lege mit „Neuer Ordner“ einen an.",
+      within(alert)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual([
+      "Das ist ein Systemordner oder er enthält einen. Wer hier lesen darf, sieht auch Passwörter und Schlüssel, und Änderungen können das System kaputt machen.",
+      "Der Ordner gehört root. samba greift deshalb als root zu: Wer hier lesen darf, sieht alles darin, und wer schreiben darf, kann alles ändern – praktisch wie root auf dieser Maschine.",
+      "In diesem Ordner ist eine andere Platte eingehängt. Fehlt sie, landet Geschriebenes im leeren Ordner auf dieser Platte.",
+    ]);
+    // a folder of root is no refusal any more
+    expect(r.queryByText(/Wähle einen eigenen Ordner/)).toBeNull();
+    const know = within(r.dialog()).getByRole("checkbox", {
+      name: "Ich weiß, was ich tue",
+    }) as HTMLInputElement;
+    expect(know.checked).toBe(false);
+    expect(r.button("Anlegen").disabled).toBe(true);
+    fireEvent.click(know);
+    expect(r.button("Anlegen").disabled).toBe(false);
+    fireEvent.click(know);
+    expect(r.button("Anlegen").disabled).toBe(true);
+  });
+
+  it("words the warning of a folder in RAM", async () => {
+    const r = renderDialog();
+    type(r.field(NAME), "Ram");
+    type(r.field("Ordner"), "/run/ram");
+    expect(
+      await within(await r.findByRole("alert")).findByText(
+        "Der Ordner liegt im Arbeitsspeicher. Nach einem Neustart ist sein Inhalt weg.",
       ),
     ).toBeTruthy();
+  });
+
+  it("sends acknowledge", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({ job: { states: [{ status: "done", step: 2 }] } });
+    type(r.field(NAME), "Etc");
+    type(r.field("Ordner"), "/etc");
+    r.pick("anna", "lesen");
+    await vi.advanceTimersByTimeAsync(300);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    expect(r.jobs()).toEqual([
+      {
+        kind: "share-add",
+        acknowledge: ["system", "root_owned"],
+        share: {
+          name: "Etc",
+          path: "/etc",
+          comment: "",
+          rights: { anna: "read" },
+          hidden: false,
+          recycle: false,
+          recycleDays: 0,
+        },
+      },
+    ]);
+  });
+
+  it("unticks when another folder is chosen", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog();
+    type(r.field(NAME), "Etc");
+    type(r.field("Ordner"), "/etc");
+    await vi.advanceTimersByTimeAsync(300);
+    const know = () =>
+      within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }) as HTMLInputElement;
+    fireEvent.click(know());
+    expect(know().checked).toBe(true);
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(within(r.dialog()).queryByRole("checkbox", { name: "Ich weiß, was ich tue" })).toBeNull();
+    type(r.field("Ordner"), "/etc");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(know().checked).toBe(false);
     expect(r.button("Anlegen").disabled).toBe(true);
+  });
+
+  it("a 409 confirm_needed shows the warnings", async () => {
+    vi.useFakeTimers();
+    let sent = 0;
+    const r = renderDialog({
+      routes: {
+        // the folder was read without warnings; the server knows better (the disk changed since)
+        "POST /jobs": () =>
+          sent++ === 0
+            ? apiError(409, "confirm_needed", "confirm the warnings first", { warnings: ["root_owned"] })
+            : json(job({ id: "J9", kind: "share-add", target: "Fotos", steps: ["prepare"], step: 0 }), 202),
+        "GET /jobs/J9": () =>
+          json(job({ id: "J9", kind: "share-add", target: "Fotos", steps: ["prepare"], status: "done" })),
+      },
+    });
+    type(r.field(NAME), "Fotos");
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    r.pick("anna", "lesen");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(within(r.dialog()).queryByRole("alert")).toBeNull();
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    const alert = r.getByRole("alert");
+    expect(
+      within(alert)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual([
+      "Der Ordner gehört root. samba greift deshalb als root zu: Wer hier lesen darf, sieht alles darin, und wer schreiben darf, kann alles ändern – praktisch wie root auf dieser Maschine.",
+    ]);
+    expect(r.button("Anlegen").disabled).toBe(true);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    expect(r.jobs().map((b) => (b as { acknowledge?: string[] }).acknowledge)).toEqual([
+      undefined,
+      ["root_owned"],
+    ]);
+  });
+
+  it("a 409 confirm_needed always needs the checkbox: without a known warning it says so above the box", async () => {
+    vi.useFakeTimers();
+    let sent = 0;
+    const r = renderDialog({
+      routes: {
+        // the server names a warning that the page does not know
+        "POST /jobs": () =>
+          sent++ === 0
+            ? apiError(409, "confirm_needed", "confirm the warnings first", { warnings: ["something_new"] })
+            : json(job({ id: "J9", kind: "share-add", target: "Fotos", steps: ["prepare"], step: 0 }), 202),
+        "GET /jobs/J9": () =>
+          json(job({ id: "J9", kind: "share-add", target: "Fotos", steps: ["prepare"], status: "done" })),
+      },
+    });
+    type(r.field(NAME), "Fotos");
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    r.pick("anna", "lesen");
+    await vi.advanceTimersByTimeAsync(300);
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    const alert = r.getByRole("alert");
+    expect(
+      within(alert)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Bestätige zuerst die Warnungen zu diesem Ordner.", "something_new"]);
+    expect(r.button("Anlegen").disabled).toBe(true);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    expect(r.jobs().map((b) => (b as { acknowledge?: string[] }).acknowledge)).toEqual([
+      undefined,
+      ["something_new"],
+    ]);
+  });
+
+  it("a 409 confirm_needed that lists nothing still shows the text and the checkbox, and never resends silently", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({
+      routes: {
+        "POST /jobs": () => apiError(409, "confirm_needed", "confirm the warnings first", { warnings: [] }),
+      },
+    });
+    type(r.field(NAME), "Fotos");
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    r.pick("anna", "lesen");
+    await vi.advanceTimersByTimeAsync(300);
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    expect(
+      within(r.getByRole("alert")).getByText("Bestätige zuerst die Warnungen zu diesem Ordner."),
+    ).toBeTruthy();
+    expect(r.button("Anlegen").disabled).toBe(true);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    expect(r.button("Anlegen").disabled).toBe(false);
+  });
+
+  it("keeps Save disabled while the answer for the folder is read", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({ job: { states: [{ status: "done" }] } });
+    type(r.field(NAME), "Fotos");
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    r.pick("anna", "lesen");
+    // the typing has not paused yet: the folder is not read, and its warnings are not known
+    expect(r.button("Anlegen").disabled).toBe(true);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(r.button("Anlegen").disabled).toBe(false);
+  });
+
+  it("edits a share that smb.conf leaves out as unconfirmed: its warnings and the box, and saving sends the codes", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({
+      share: share({
+        name: "Etc",
+        path: "/etc",
+        mount: "/",
+        skipped: "unconfirmed",
+        unconfirmed: ["system", "root_owned"],
+        warnings: ["system", "root_owned"],
+      }),
+      job: { states: [{ status: "done" }] },
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(within(r.getByRole("alert")).getAllByRole("listitem")).toHaveLength(2);
+    expect(r.button("Speichern").disabled).toBe(true);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    fireEvent.click(r.button("Speichern"));
+    await settle();
+    expect(r.jobs()[0]).toMatchObject({
+      kind: "share-edit",
+      name: "Etc",
+      acknowledge: ["system", "root_owned"],
+    });
+  });
+
+  it("a folder without warnings needs no checkbox", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({ job: { states: [{ status: "done" }] } });
+    type(r.field(NAME), "Fotos");
+    type(r.field("Ordner"), "/mnt/daten/Fotos");
+    r.pick("anna", "lesen");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(within(r.dialog()).queryByRole("alert")).toBeNull();
+    expect(within(r.dialog()).queryByRole("checkbox", { name: "Ich weiß, was ich tue" })).toBeNull();
+    expect(r.button("Anlegen").disabled).toBe(false);
+    fireEvent.click(r.button("Anlegen"));
+    await settle();
+    expect(r.jobs()).toHaveLength(1);
+    expect(r.jobs()[0]).not.toHaveProperty("acknowledge");
+  });
+
+  it("needs the checkbox for every edit of a share with warnings, and sends acknowledge", async () => {
+    vi.useFakeTimers();
+    const r = renderDialog({
+      share: share({ name: "Etc", path: "/etc", mount: "/", warnings: ["system", "root_owned"] }),
+      job: { states: [{ status: "done" }] },
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    type(r.field("Beschreibung (optional)"), "nur eine Beschreibung");
+    expect(r.button("Speichern").disabled).toBe(true);
+    fireEvent.click(within(r.dialog()).getByRole("checkbox", { name: "Ich weiß, was ich tue" }));
+    fireEvent.click(r.button("Speichern"));
+    await settle();
+    expect(r.jobs()).toHaveLength(1);
+    expect(r.jobs()[0]).toMatchObject({
+      kind: "share-edit",
+      name: "Etc",
+      acknowledge: ["system", "root_owned"],
+    });
+  });
+
+  it("starts the navigator at / for a new share", async () => {
+    const r = renderDialog();
+    fireEvent.click(r.button("Durchsuchen …"));
+    const nav = r.getByRole("dialog", { name: "Ordner wählen" });
+    expect(await within(nav).findByRole("button", { name: "etc" })).toBeTruthy();
+    expect(within(nav).getByRole("button", { name: "Systemplatte (/)" })).toBeTruthy();
   });
 
   it("puts the days of the recycle bin at 30 when it is turned on, and takes 1 to 3650 only", async () => {
@@ -444,6 +714,7 @@ describe("ShareDialog", () => {
     const r = renderDialog();
     fireEvent.click(r.button("Durchsuchen …"));
     const nav = r.getByRole("dialog", { name: "Ordner wählen" });
+    fireEvent.click(within(nav).getByRole("button", { name: "/mnt/daten · ext4 · 1,2 TB frei" }));
     fireEvent.click(await within(nav).findByRole("button", { name: "Fotos" }));
     const choose = await within(nav).findByRole("button", { name: "„/mnt/daten/Fotos“ wählen" });
     fireEvent.click(choose);
@@ -504,8 +775,9 @@ describe("ShareDialog: a view poll while it is open", () => {
     const r = renderDialog();
     fireEvent.click(r.button("Durchsuchen …"));
     const nav = r.getByRole("dialog", { name: "Ordner wählen" });
-    await within(nav).findByRole("button", { name: "Fotos" });
     const disk = within(nav).getByRole("button", { name: "/mnt/daten · ext4 · 1,2 TB frei" });
+    fireEvent.click(disk);
+    await within(nav).findByRole("button", { name: "Fotos" });
     const folder = within(nav).getByRole("button", { name: "Fotos" });
     fireEvent.click(within(nav).getByRole("button", { name: "Neuer Ordner …" }));
     const name = within(nav).getByLabelText("Name des neuen Ordners") as HTMLInputElement;

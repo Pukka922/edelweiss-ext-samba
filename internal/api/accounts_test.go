@@ -514,7 +514,7 @@ func TestServiceAccount(t *testing.T) {
 	}
 	f.write(accounts.PasswdFile, strings.Join(keep, ""))
 	f.send("POST", "/service-accounts", map[string]string{"path": "/mnt/disk/data/"}, admin).wantError(t, 400, "invalid_input")
-	f.send("POST", "/service-accounts", map[string]string{"path": "/etc"}, admin).wantError(t, 400, "invalid_input")
+	f.send("POST", "/service-accounts", map[string]string{"path": "/proc"}, admin).wantError(t, 400, "invalid_input")
 
 	got := accountAnswerOf(t, f.send("POST", "/service-accounts", map[string]string{"path": "/mnt/disk/data"}, admin))
 	wantUser := "smb-" + uidString()

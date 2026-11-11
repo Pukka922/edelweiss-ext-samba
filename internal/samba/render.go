@@ -57,6 +57,9 @@ type RenderEnv struct {
 	Binary     string           // the extension's executable, for the root preexec of each share: an absolute clean path
 	NoXattr    map[string]bool  // the shares on a file system without extended attributes
 	Ifaces     []Iface          // the network interfaces of the host (SystemInterfaces): the networks of its bridges
+	// Warnings are the warnings of the folder of each share now (paths.WarningsFor), by share name; a share that is not
+	// here has none. Render only asks whether system or root_owned is among them and confirmed (SkipUnconfirmed).
+	Warnings map[string][]string
 	// MDNS: smbd announces itself through avahi, as the discovery is on, on a local interface; without it multicast dns
 	// register = no, so that an avahi-daemon that runs for something else does not announce smbd.
 	MDNS bool
@@ -67,10 +70,30 @@ const (
 	SkipBadName   = "bad_name"   // ValidShareName refuses the name
 	SkipCaseClash = "case_clash" // another share has the same name without case, or two readers differ only by case
 	SkipNoOwner   = "no_owner"   // no owner, or no safe owner user or group name
-	SkipRootOwned = "root_owned" // the owner is root
 	SkipBadPath   = "bad_path"   // the path cannot be written to smb.conf as it is
 	SkipNoUsers   = "no_users"   // no user with a right and a Samba entry: an empty valid users would admit every account
+	// SkipUnconfirmed: the folder has the warning system or root_owned (RenderEnv.Warnings) that the share's Acknowledged
+	// codes do not hold, as when a folder came to belong to root after the share was made.
+	SkipUnconfirmed = "unconfirmed"
 )
+
+// The warnings whose confirmation a share needs to be served (paths.WarnSystem and paths.WarnRootOwned are these).
+const (
+	WarnSystem    = "system"     // a folder of the system, or one that holds one
+	WarnRootOwned = "root_owned" // it belongs to root: smbd serves it as root
+)
+
+// Unconfirmed are the warnings among WarnSystem and WarnRootOwned that the folder has now (warnings) and the share did not
+// have confirmed (acknowledged), in the order of warnings: the codes that keep a share out of smb.conf.
+func Unconfirmed(warnings, acknowledged []string) []string {
+	var out []string
+	for _, w := range warnings {
+		if (w == WarnSystem || w == WarnRootOwned) && !slices.Contains(acknowledged, w) {
+			out = append(out, w)
+		}
+	}
+	return out
+}
 
 // Result is what Render made.
 type Result struct {
@@ -105,7 +128,7 @@ func checkBinary(b string) error {
 // to.
 //
 // A share that would break or open up the config is left out, with the reason in Result.Skipped (SkipBadName, SkipCaseClash,
-// SkipNoOwner, SkipRootOwned, SkipBadPath, SkipNoUsers). Names without a Samba entry in the rights are not rendered.
+// SkipNoOwner, SkipBadPath, SkipUnconfirmed, SkipNoUsers). Names without a Samba entry in the rights are not rendered.
 func Render(c Config, env RenderEnv) (Result, error) {
 	if err := checkBinary(env.Binary); err != nil {
 		return Result{}, errors.New("render: " + err.Error())
@@ -238,6 +261,10 @@ func safePath(p string) bool {
 
 func quote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
+// kernelVeto hides /proc, /sys and /dev in the share of / (the veto files list of Samba: names between slashes, at every
+// depth), which is the one place where the kernel's folders are below a share.
+const kernelVeto = "/proc/sys/dev/"
+
 // writeShare writes the section of s and the include files of its readers. It returns "" when it wrote the share and the
 // reason when it left it out.
 func writeShare(b *strings.Builder, res Result, s Share, env RenderEnv) string {
@@ -248,11 +275,11 @@ func writeShare(b *strings.Builder, res Result, s Share, env RenderEnv) string {
 	if !userRE.MatchString(owner.User) || !groupRE.MatchString(owner.Group) {
 		return SkipNoOwner
 	}
-	if owner.User == "root" {
-		return SkipRootOwned
-	}
 	if !safePath(s.Path) {
 		return SkipBadPath
+	}
+	if len(Unconfirmed(env.Warnings[s.Name], s.Acknowledged)) > 0 {
+		return SkipUnconfirmed
 	}
 	valid := users(s.Rights, env, Read, Write)
 	if len(valid) == 0 {
@@ -296,6 +323,11 @@ func writeShare(b *strings.Builder, res Result, s Share, env RenderEnv) string {
 	if w := users(s.Rights, env, Write); len(w) > 0 {
 		line("write list = %s", strings.Join(w, " "))
 	}
+	if s.Path == "/" {
+		// links such as etc/mtab to /proc/mounts lie inside the share, and wide links = no does not stop them
+		line("follow symlinks = no")
+		line("veto files = %s", kernelVeto)
+	}
 	line("root preexec = %s --samba-tool check-share --name '%%S' --client '%%I'", quote(env.Binary))
 	line("root preexec close = yes")
 	// acl_xattr only where the folder rights are: on a plain share an ACL edit from a client would write security.NTACL.
@@ -331,7 +363,11 @@ func writeShare(b *strings.Builder, res Result, s Share, env RenderEnv) string {
 				res.Skipped[s.Name+"/"+lower] = SkipCaseClash
 				continue
 			}
-			res.Files[IncludePath(s.Name, us[0])] = "veto files = /#recycle/\n"
+			veto := "/#recycle/"
+			if s.Path == "/" {
+				veto += strings.TrimPrefix(kernelVeto, "/") // the include file replaces the line of the section
+			}
+			res.Files[IncludePath(s.Name, us[0])] = "veto files = " + veto + "\n"
 		}
 	}
 	return ""

@@ -80,6 +80,10 @@ type Share struct {
 	// Folders are the rights of folders by their path below the share. They only narrow the share's rights, and only
 	// exist with PerUser.
 	Folders map[string]map[string]Right `json:"folders,omitempty"`
+	// Acknowledged are the warnings of the folder (paths.Warnings) that the user saw and confirmed when the share was
+	// made or last edited. A share whose folder has the warning system or root_owned that is not here is left out of
+	// smb.conf (SkipUnconfirmed). A share of 0.1.0 has none.
+	Acknowledged []string `json:"acknowledged,omitempty"`
 }
 
 // Config is the content of ConfigPath. AvahiBefore: avahi-daemon was in the runlevel or running before the setup, so it

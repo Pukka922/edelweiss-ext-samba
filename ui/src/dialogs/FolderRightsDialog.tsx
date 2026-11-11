@@ -39,6 +39,8 @@ interface Conversion {
  * - The share's own folder (folder "") shows the share's rights, which change with the share: only a mixed state is applied
  *   again there.
  * - "Rechte der Freigabe übernehmen" takes the own rights of the folder away (inherit).
+ * - A share with the warning system or root_owned (the folder tree is read-only there) offers only those two, taking the
+ *   rights back and applying them again: the table is read-only, and the server refuses new rights (folder_rights_unsafe).
  * - A disk that cannot keep folder rights (no_acl) ends the dialog with the reason, which the page keeps for the tree (onNoAcl).
  *
  * The dialog closes when the share is gone from the view, unless its job runs.
@@ -131,8 +133,11 @@ export function FolderRightsDialog(props: {
   /** A mixed state that is applied again as it is: the rights of the folder they come from, the table unchanged. */
   const reapplying = () => mixed() && unchanged();
   const over = () => change.over() || noAcl() || readError() !== undefined;
-  const locked = () => change.busy() || over() || root;
-  const canApply = () => !props.busy() && known() && info() !== undefined && (reapplying() || !unchanged());
+  /** The share's folder is a system folder or belongs to root: no new rights, the server refuses them. */
+  const limited = at.warnings.some((w) => w === "system" || w === "root_owned");
+  const locked = () => change.busy() || over() || root || limited;
+  const canApply = () =>
+    !props.busy() && known() && info() !== undefined && (reapplying() || (!limited && !unchanged()));
   const label = () =>
     t(convert() !== undefined ? "folder.convertApply" : reapplying() ? "folder.reapply" : "folder.apply");
 
@@ -270,7 +275,9 @@ export function FolderRightsDialog(props: {
                 />
               </Show>
             </Show>
-            <p class="text-xs opacity-70">{note()}</p>
+            <Show when={limited} fallback={<p class="text-xs opacity-70">{note()}</p>}>
+              <Callout tone="warn">{t("errors.folder_rights_unsafe")}</Callout>
+            </Show>
             <Show when={mixed()}>
               <Callout tone="warn">{t("folder.mixed")}</Callout>
             </Show>

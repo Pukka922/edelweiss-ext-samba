@@ -347,7 +347,6 @@ func TestRenderSkipReasons(t *testing.T) {
 	own("Fotos", "myUser", "myUser")
 	own("fotos", "myUser", "myUser")
 	own("NoGroup", "myUser", "")
-	own("RootOwned", "root", "root")
 	own("Newline", "my\nUser", "myUser")
 	own("global", "myUser", "myUser")
 	own("a/b", "myUser", "myUser")
@@ -358,7 +357,7 @@ func TestRenderSkipReasons(t *testing.T) {
 	delete(env.Owners, "Archiv")
 	want := map[string]string{
 		"fotos": samba.SkipCaseClash, "Archiv": samba.SkipNoOwner, "NoGroup": samba.SkipNoOwner, "Newline": samba.SkipNoOwner,
-		"RootOwned": samba.SkipRootOwned, "global": samba.SkipBadName, "a/b": samba.SkipBadName,
+		"global": samba.SkipBadName, "a/b": samba.SkipBadName,
 		"Empty": samba.SkipNoUsers, "RelPath": samba.SkipBadPath, "Percent": samba.SkipBadPath, "Backslash": samba.SkipBadPath,
 		"NL": samba.SkipBadPath, "LeadSpace": samba.SkipBadPath, "TrailSpace": samba.SkipBadPath,
 		"DoubleSpace": samba.SkipBadPath, "Tab": samba.SkipBadPath, "Dots": samba.SkipBadPath,
@@ -368,7 +367,6 @@ func TestRenderSkipReasons(t *testing.T) {
 		{Name: "fotos", Path: "/srv/other", Rights: rights}, // the same name for Samba
 		{Name: "Archiv", Path: "/srv/archiv", Rights: rights},
 		{Name: "NoGroup", Path: "/srv/x", Rights: rights},
-		{Name: "RootOwned", Path: "/srv/root", Rights: rights},
 		{Name: "global", Path: "/srv/g", Rights: rights},
 		{Name: "a/b", Path: "/srv/ab", Rights: rights},
 		{Name: "Newline", Path: "/srv/nl", Rights: rights},
@@ -636,6 +634,160 @@ func TestRenderPlainShareHasNoACLModule(t *testing.T) {
 			if strings.Contains(l, "acl_xattr") {
 				t.Errorf("[%s] has %s", n, l)
 			}
+		}
+	}
+}
+
+// A folder of root is served as root: no skip, force user = root.
+func TestRootOwnedRendersAsRoot(t *testing.T) {
+	env := baseEnv()
+	env.Owners["System"] = samba.Owner{User: "root", Group: "root"}
+	c := baseConfig()
+	c.Shares = append(c.Shares, samba.Share{Name: "System", Path: "/etc", Rights: map[string]samba.Right{"myUser": samba.Write}})
+	files := render(t, c, env)
+	sec := section(files[confPath], "System")
+	if sec == nil {
+		t.Fatalf("the root-owned share is left out:\n%s", files[confPath])
+	}
+	for _, l := range []string{"path = /etc", "force user = root", "force group = root"} {
+		if !hasLine(sec, l) {
+			t.Errorf("no line %q in %v", l, sec)
+		}
+	}
+	res, err := samba.Render(c, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason, ok := res.Skipped["System"]; ok {
+		t.Errorf("skipped: %q", reason)
+	}
+}
+
+// A share whose folder has the warning system or root_owned that its Acknowledged codes do not hold is left out
+// (SkipUnconfirmed); one whose codes hold them is rendered, as root where the folder is root's. holds_mount and ram never
+// leave a share out, and a share without current warnings (env.Warnings) is not looked at.
+func TestRenderUnconfirmed(t *testing.T) {
+	env := baseEnv()
+	for _, n := range []string{"Root", "Sys", "Both", "Mount", "Ram"} {
+		env.Owners[n] = samba.Owner{User: "root", Group: "root"}
+	}
+	env.Warnings = map[string][]string{
+		"Root": {"root_owned"}, "Sys": {"system"}, "Both": {"system", "root_owned"}, "Mount": {"holds_mount"}, "Ram": {"ram"},
+		"Fotos": nil,
+	}
+	rights := map[string]samba.Right{"myUser": samba.Write}
+	c := samba.Config{Shares: []samba.Share{
+		{Name: "Root", Path: "/srv/root", Rights: rights},
+		{Name: "Sys", Path: "/srv/sys", Rights: rights},
+		{Name: "Both", Path: "/srv/both", Rights: rights, Acknowledged: []string{"root_owned"}},
+		{Name: "Mount", Path: "/srv/mount", Rights: rights},
+		{Name: "Ram", Path: "/srv/ram", Rights: rights},
+		{Name: "Fotos", Path: "/srv/fotos", Rights: rights},
+	}}
+	res, err := samba.Render(c, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"Root": samba.SkipUnconfirmed, "Sys": samba.SkipUnconfirmed, "Both": samba.SkipUnconfirmed}
+	if !maps.Equal(res.Skipped, want) {
+		t.Errorf("skipped = %v, want %v", res.Skipped, want)
+	}
+	if conf := res.Files[confPath]; strings.Contains(conf, "[Root]") || !strings.Contains(conf, "[Mount]") || !strings.Contains(conf, "[Ram]") {
+		t.Errorf("sections:\n%s", conf)
+	}
+
+	c.Shares[0].Acknowledged = []string{"root_owned"}
+	c.Shares[1].Acknowledged = []string{"system", "ram"}
+	c.Shares[2].Acknowledged = []string{"system", "root_owned"}
+	res, err = samba.Render(c, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Skipped) != 0 {
+		t.Errorf("confirmed: skipped %v", res.Skipped)
+	}
+	if sec := section(res.Files[confPath], "Root"); !hasLine(sec, "force user = root") || !hasLine(sec, "force group = root") {
+		t.Errorf("the confirmed root share: %v", sec)
+	}
+	if got := samba.Unconfirmed([]string{"system", "root_owned", "ram"}, []string{"root_owned"}); !slices.Equal(got, []string{"system"}) {
+		t.Errorf("Unconfirmed = %v", got)
+	}
+}
+
+// The share of / hides /proc, /sys and /dev (at every depth, as veto files does), merged with what the recycle bin
+// vetoes; no other share gets a veto line from this.
+func TestRenderVetoForRoot(t *testing.T) {
+	env := baseEnv()
+	env.Owners["System"] = samba.Owner{User: "root", Group: "root"}
+	env.Owners["SysBin"] = samba.Owner{User: "root", Group: "root"}
+	c := baseConfig()
+	c.Shares = append(c.Shares,
+		samba.Share{Name: "System", Path: "/", Rights: map[string]samba.Right{"myUser": samba.Write, "anna": samba.Read}},
+		samba.Share{Name: "SysBin", Path: "/", Recycle: true, RecycleDays: 30, Rights: map[string]samba.Right{"anna": samba.Read}})
+	files := render(t, c, env)
+	conf := files[confPath]
+	if sec := section(conf, "System"); !hasLine(sec, "veto files = /proc/sys/dev/") {
+		t.Errorf("the share of /: %v", sec)
+	}
+	// with a recycle bin the include file of the reader replaces the line: it keeps both
+	if got := files[samba.IncludePath("SysBin", "anna")]; got != "veto files = /#recycle/proc/sys/dev/\n" {
+		t.Errorf("include of the share of / with a recycle bin: %q", got)
+	}
+	for _, name := range []string{"Fotos", "Archiv", "Dokumente"} {
+		for _, l := range section(conf, name) {
+			if strings.HasPrefix(l, "veto files") {
+				t.Errorf("%s has %q", name, l)
+			}
+		}
+	}
+}
+
+// The share of / follows no links: a link such as etc/mtab to /proc/mounts lies inside it, and wide links = no does not
+// stop it. No other share gets the line.
+func TestRenderRootFollowsNoLinks(t *testing.T) {
+	env := baseEnv()
+	env.Owners["System"] = samba.Owner{User: "root", Group: "root"}
+	c := baseConfig()
+	c.Shares = append(c.Shares, samba.Share{Name: "System", Path: "/", Rights: map[string]samba.Right{"anna": samba.Read}})
+	conf := render(t, c, env)[confPath]
+	if sec := section(conf, "System"); !hasLine(sec, "follow symlinks = no") {
+		t.Errorf("the share of /: %v", sec)
+	}
+	for _, name := range []string{"Fotos", "Archiv", "Dokumente"} {
+		for _, l := range section(conf, name) {
+			if strings.Contains(l, "symlinks") {
+				t.Errorf("%s has %q", name, l)
+			}
+		}
+	}
+}
+
+// A plain share of 0.1.0 renders as it did (the golden files of this package have not changed since 0.1.0): the lines of
+// its section are these exactly, no veto files line is added to smb.conf, and the include files of its readers veto
+// #recycle alone.
+func TestOldShareUnchanged(t *testing.T) {
+	files := render(t, baseConfig(), baseEnv())
+	want := []string{
+		"path = /srv/archiv",
+		"browseable = no",
+		"force user = myUser",
+		"force group = myUser",
+		"valid users = anna myUser",
+		"read list = anna",
+		"write list = myUser",
+		"root preexec = '" + binary + "' --samba-tool check-share --name '%S' --client '%I'",
+		"root preexec close = yes",
+		"vfs objects = catia fruit streams_xattr",
+	}
+	if got := section(files[confPath], "Archiv"); !slices.Equal(got, want) {
+		t.Errorf("section Archiv\n got %q\nwant %q", got, want)
+	}
+	if strings.Contains(files[confPath], "veto files") {
+		t.Errorf("smb.conf of plain shares has a veto files line:\n%s", files[confPath])
+	}
+	for p, content := range files {
+		if p != confPath && content != "veto files = /#recycle/\n" {
+			t.Errorf("%s: %q", p, content)
 		}
 	}
 }

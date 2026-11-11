@@ -136,7 +136,7 @@ func (a *API) jobDir(id string) (string, error) {
 }
 
 // env is the fresh look at the host that a plan is made from: the config (an unreadable one is ConfigErr, a missing one
-// is a host that is not set up), the mounts and the data mounts right after it, the accounts, the interfaces, and the
+// is a host that is not set up), the mounts and the mounts a share can be on right after it, the accounts, the interfaces, and the
 // Samba users of a fresh pdbedit -L -v when the extension is set up.
 func (a *API) env(ctx context.Context) (actions.Env, error) {
 	fsys := a.fs()
@@ -150,9 +150,9 @@ func (a *API) env(ctx context.Context) (actions.Env, error) {
 	if err != nil {
 		return actions.Env{}, fmt.Errorf("reading the mounts: %w", err)
 	}
-	data, err := paths.DataMounts(fsys, a.statfs())
+	data, err := paths.ShareMounts(fsys, a.statfs())
 	if err != nil {
-		return actions.Env{}, fmt.Errorf("reading the data disks: %w", err)
+		return actions.Env{}, fmt.Errorf("reading the disks: %w", err)
 	}
 	db, err := accounts.Load(a.Root, a.now())
 	if err != nil {
@@ -163,7 +163,7 @@ func (a *API) env(ctx context.Context) (actions.Env, error) {
 		return actions.Env{}, fmt.Errorf("reading the network interfaces: %w", err)
 	}
 	env := actions.Env{FS: fsys, Tools: t, Mode: mode, Config: cfg, ConfigErr: cfgErr, SetUp: set, DB: db, Mounts: mounts,
-		Data: data, Ifaces: ifaces, Binary: a.Binary, Self: a.Self, Probe: a.Probe, Ctx: ctx}
+		Data: data, Ifaces: ifaces, Binary: a.Binary, Self: a.Self, Probe: a.Probe, OwnerOf: a.OwnerOf, Ctx: ctx}
 	if set && cfgErr == nil {
 		if env.SambaUsers, err = a.sambaTools(t).Users(ctx); err != nil {
 			return actions.Env{}, err

@@ -134,7 +134,9 @@ func TestWalkOpenFileChanged(t *testing.T) {
 	var err error
 	events(t, walk.Walker{Visit: func(e walk.Entry) (bool, error) {
 		if e.Rel == "f" {
-			if rerr := os.Remove(filepath.Join(dir, "f")); rerr != nil {
+			// the old file stays (renamed), so that the new one has another inode on every file system: ext4 reuses the
+			// number of a removed file at once
+			if rerr := os.Rename(filepath.Join(dir, "f"), filepath.Join(dir, "f.old")); rerr != nil {
 				t.Fatal(rerr)
 			}
 			put(t, dir, "f")

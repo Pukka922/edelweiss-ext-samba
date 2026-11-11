@@ -85,15 +85,16 @@
       "unmounted": "disk missing",
       "missing": "folder missing",
       "link": "folder is a link",
-      "no_owner": "owner missing"
+      "no_owner": "owner missing",
+      "kernel": "An interface to the kernel (/proc, /sys or /dev) is mounted below the folder, so the share is locked."
     },
     "skipped": {
       "no_users": "nobody has access",
-      "root_owned": "belongs to root",
       "no_owner": "owner missing",
       "bad_name": "the name does not work for Samba",
       "case_clash": "the name equals another one but for upper and lower case",
-      "bad_path": "the folder does not work for Samba"
+      "bad_path": "the folder does not work for Samba",
+      "unconfirmed": "Confirmation needed: The folder has become a system folder or belongs to root. Confirm the warnings in the edit dialog, and the share is reachable again."
     }
   },
   "share": {
@@ -111,10 +112,16 @@
     "recycleDaysHint": "1 to 3650 days",
     "owner": "Samba accesses the files as the owner of the folder ({{ owner }}); nothing changes in the existing files.",
     "ownerPerUser": "This share uses folder rights: Samba accesses the files as each user, in the group {{ group }}.",
-    "ownerRoot": "The folder belongs to root. Choose a folder of its own, or make one with “New folder”.",
     "ownerMissing": "The folder belongs to UID {{ uid }} and GID {{ gid }}, which have no account on this host (a disk from another computer, for example).",
     "ownerReading": "Reading the owner of the folder …",
-    "pathHint": "Choose a folder on a data disk.",
+    "pathHint": "Choose a folder.",
+    "know": "I know what I am doing",
+    "warning": {
+      "system": "This is a system folder or holds one. Whoever may read here also sees passwords and keys, and changes can break the system.",
+      "root_owned": "The folder belongs to root. samba therefore accesses it as root: whoever may read here sees everything in it, and whoever may write can change everything – practically root on this machine.",
+      "holds_mount": "Another disk is mounted in this folder. If it is missing, what is written lands in the empty folder on this disk.",
+      "ram": "The folder is in RAM. Its content is gone after a restart."
+    },
     "pathPerUser": "This share uses folder rights and keeps its folder.",
     "pathInUse": "The folder is inside another share, or holds one: {{ shares }}.",
     "pathMissing": "That folder does not exist.",
@@ -140,16 +147,16 @@
   },
   "navigator": {
     "title": "Choose a folder",
-    "disks": "Data disks",
+    "disks": "Disks",
+    "system": "System disk (/)",
+    "systemRam": "System (/, in RAM)",
     "disk": "{{ point }} · {{ type }} · {{ free }} free",
-    "noDisks": "No data disk is mounted.",
-    "chooseDisk": "Choose a data disk.",
     "path": "Path",
     "folders": "Subfolders",
     "up": "one level up",
     "empty": "There are no folders here.",
     "truncated": "There are more folders here than the list shows.",
-    "note": "folders only · system folders are not offered · no links",
+    "note": "folders only · no links · /proc, /sys and /dev are not offered",
     "reading": "Reading the folder …",
     "newFolder": "New folder …",
     "newName": "Name of the new folder",
@@ -390,7 +397,9 @@
     "unavailableShare": "The disk of the share {{ share }} is not there.",
     "no_owner": "The owner of the folder has no account on this host – create a service account.",
     "noOwner": "The owner {{ uid }}:{{ gid }} of the folder has no account on this host – create a service account.",
-    "root_owned": "The folder belongs to root. Choose a folder of its own, or make one with “New folder”.",
+    "root_owned": "The folder belongs to root, and root has an account already: no service account is made for it.",
+    "folder_rights_unsafe": "There are no folder rights for system folders, folders of root and home directories: Switching would make every file in them writable for the group – in a home that blocks the login with an SSH key.",
+    "confirm_needed": "Confirm the warnings for this folder first.",
     "wrong_password": "The Linux password is wrong.",
     "no_acl": "The disk of this share cannot keep folder rights.",
     "noAcl": "The disk of this share cannot keep folder rights: {{ reason }}",
@@ -403,12 +412,13 @@
     "csrf_invalid": "The page was open too long. Reload it and try again.",
     "reason": {
       "not_absolute": "The folder has to be an absolute path without . and .. (like /mnt/data/Photos).",
-      "no_data_mount": "The folder is on no data disk.",
+      "no_data_mount": "The disk of the folder has changed or is gone, or the folder cannot be read.",
+      "kernel": "/proc, /sys and /dev are interfaces to the kernel and cannot be shared.",
+      "not_mounted": "By /etc/fstab a disk belongs here that is not mounted right now. Mount it first.",
       "link": "The folder is a link or lies behind one – links are not followed.",
       "not_dir": "That is no folder.",
       "per_user": "This share uses folder rights and keeps its folder.",
       "per_user_disk_changed": "This share uses folder rights and is on another disk now. Remove it and add it again.",
-      "system_dir": "Folders of the system (like /var/lib or /var/log) are not offered and not shared, nor a folder that holds one.",
       "in_share": "The folder is in a share: a new folder in it could never be a share of its own."
     },
     "aclReason": {

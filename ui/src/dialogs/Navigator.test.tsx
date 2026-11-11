@@ -2,7 +2,7 @@ import { cleanup, fireEvent, waitFor, within } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Guard, PageGuard } from "../guard";
-import { browse, browseRoute, mounts } from "../test/fixtures";
+import { browse, browseRoute, GB, mounts } from "../test/fixtures";
 import { apiError, type Handler, json, renderExt, stubApi, type } from "../test/render";
 import { Navigator, useBrowse } from "./Navigator";
 
@@ -15,6 +15,8 @@ function renderNav(
   opts: { value?: string; routes?: Record<string, Handler>; allowMkdir?: boolean; guard?: Guard } = {},
 ) {
   const api = stubApi({
+    [browseRoute("/")]: () => json(browse("/", ["etc", "home", "media", "mnt"])),
+    [browseRoute("/mnt")]: () => json(browse("/mnt", ["daten", "usb1"])),
     [browseRoute("/mnt/daten")]: () => json(browse("/mnt/daten", ["Filme", "Fotos"])),
     [browseRoute("/mnt/daten/Fotos")]: () => json(browse("/mnt/daten/Fotos", ["2024", "2025"])),
     [browseRoute("/mnt/usb1")]: () => json(browse("/mnt/usb1", ["backup"])),
@@ -41,7 +43,61 @@ function renderNav(
 }
 
 describe("Navigator", () => {
-  it("offers the data disks, and lists the folders of the one it shows", async () => {
+  it("starts at / with the disks as quick jumps", async () => {
+    const r = renderNav({ value: "/" });
+    expect(r.getByRole("button", { name: "Systemplatte (/)" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      r.getByRole("button", { name: "/mnt/daten · ext4 · 1,2 TB frei" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" })).toBeTruthy();
+    // nothing above /
+    await waitFor(() => expect(r.folders()).toEqual(["etc", "home", "media", "mnt"]));
+    expect(r.getByRole("navigation", { name: "Pfad" }).textContent).toBe("/");
+    expect(r.api.sent("GET", "/browse?dir=%2F")).toHaveLength(1);
+    expect(r.queryByText("Wähle eine Datenplatte.")).toBeNull();
+    fireEvent.click(r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" }));
+    expect(r.onChange).toHaveBeenLastCalledWith("/mnt/usb1");
+    await waitFor(() => expect(r.folders()).toEqual(["..", "backup"]));
+    fireEvent.click(r.getByRole("button", { name: "Systemplatte (/)" }));
+    expect(r.onChange).toHaveBeenLastCalledWith("/");
+    await waitFor(() => expect(r.folders()).toEqual(["etc", "home", "media", "mnt"]));
+  });
+
+  it("calls the system disk by what it is when / is in RAM", () => {
+    const r = renderNav({ value: "/" });
+    r.setDisks(mounts().map((m) => (m.point === "/" ? { ...m, type: "tmpfs", ram: true } : m)));
+    expect(r.getByRole("button", { name: "System (/, im RAM)" }).getAttribute("aria-pressed")).toBe("true");
+    expect(r.queryByRole("button", { name: "Systemplatte (/)" })).toBeNull();
+  });
+
+  it("leaves out the mounts below /run, /var/lib/docker and /var/lib/containers and overlay mounts as quick jumps", () => {
+    const r = renderNav({ value: "/" });
+    const disk = (point: string, type = "ext4") => ({
+      point,
+      type,
+      total: 100 * GB,
+      free: 10 * GB,
+      xattr: true,
+      ram: false,
+    });
+    r.setDisks([
+      ...mounts(),
+      disk("/run/user/1000", "tmpfs"),
+      disk("/run/media/frank/stick", "vfat"),
+      disk("/var/lib/docker/overlay2/x/merged", "overlay"),
+      disk("/var/lib/docker/volumes/v"),
+      disk("/var/lib/containers/storage/overlay"),
+      disk("/srv/merged", "overlay"),
+      disk("/runtime", "ext4"),
+      disk("/var/lib/dockerdata", "ext4"),
+    ]);
+    const jumps = within(r.getByText("Platten").parentElement as HTMLElement)
+      .getAllByRole("button")
+      .map((b) => b.textContent?.split(" · ")[0]);
+    expect(jumps).toEqual(["Systemplatte (/)", "/mnt/daten", "/mnt/usb1", "/runtime", "/var/lib/dockerdata"]);
+  });
+
+  it("offers the disks, and lists the folders of the one it shows", async () => {
     const r = renderNav();
     expect(
       r.getByRole("button", { name: "/mnt/daten · ext4 · 1,2 TB frei" }).getAttribute("aria-pressed"),
@@ -49,38 +105,38 @@ describe("Navigator", () => {
     expect(
       r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" }).getAttribute("aria-pressed"),
     ).toBe("false");
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     expect(r.api.sent("GET", "/browse?dir=%2Fmnt%2Fdaten")).toHaveLength(1);
-    expect(r.getByText("nur Ordner · Systemordner werden nicht angeboten · keine Links")).toBeTruthy();
+    expect(
+      r.getByText("nur Ordner · keine Links · /proc, /sys und /dev werden nicht angeboten"),
+    ).toBeTruthy();
   });
 
   it("enters a folder, goes up with .., and back along the path", async () => {
     const r = renderNav();
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
-    // at the mount point there is nothing above
-    expect(r.queryByRole("button", { name: "eine Ebene höher" })).toBeNull();
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     fireEvent.click(r.getByRole("button", { name: "Fotos" }));
     expect(r.onChange).toHaveBeenLastCalledWith("/mnt/daten/Fotos");
     await waitFor(() => expect(r.folders()).toEqual(["..", "2024", "2025"]));
     const path = r.getByRole("navigation", { name: "Pfad" });
-    expect(path.textContent).toBe("/mnt/daten›Fotos");
+    expect(path.textContent).toBe("/mnt›daten›Fotos");
     fireEvent.click(r.getByRole("button", { name: "eine Ebene höher" }));
     expect(r.onChange).toHaveBeenLastCalledWith("/mnt/daten");
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     fireEvent.click(r.getByRole("button", { name: "Fotos" }));
     await waitFor(() => expect(r.folders()).toEqual(["..", "2024", "2025"]));
     fireEvent.click(
-      within(r.getByRole("navigation", { name: "Pfad" })).getByRole("button", { name: "/mnt/daten" }),
+      within(r.getByRole("navigation", { name: "Pfad" })).getByRole("button", { name: "daten" }),
     );
     expect(r.onChange).toHaveBeenLastCalledWith("/mnt/daten");
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
   });
 
-  it("switches to another data disk", async () => {
+  it("switches to another disk", async () => {
     const r = renderNav();
     fireEvent.click(r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" }));
     expect(r.onChange).toHaveBeenLastCalledWith("/mnt/usb1");
-    await waitFor(() => expect(r.folders()).toEqual(["backup"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "backup"]));
   });
 
   it("shows the folder it is at, when the answer for the one before comes later", async () => {
@@ -94,16 +150,10 @@ describe("Navigator", () => {
       },
     });
     fireEvent.click(r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" }));
-    await waitFor(() => expect(r.folders()).toEqual(["backup"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "backup"]));
     answerDaten();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(r.folders()).toEqual(["backup"]);
-  });
-
-  it("asks for a data disk first when it shows none, and reads nothing", () => {
-    const r = renderNav({ value: "" });
-    expect(r.getByText("Wähle eine Datenplatte.")).toBeTruthy();
-    expect(r.api.calls).toEqual([]);
+    expect(r.folders()).toEqual(["..", "backup"]);
   });
 
   it("makes a folder where it is, after the guard of the page, and goes into it", async () => {
@@ -130,7 +180,7 @@ describe("Navigator", () => {
 
   it("sends the name of a new folder trimmed", async () => {
     const r = renderNav({ routes: { "POST /browse/mkdir": () => json({ path: "/mnt/daten/2026" }) } });
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     fireEvent.click(r.getByRole("button", { name: "Neuer Ordner …" }));
     type(r.getByLabelText("Name des neuen Ordners"), "  2026 ");
     fireEvent.click(r.getByRole("button", { name: "Anlegen" }));
@@ -142,7 +192,7 @@ describe("Navigator", () => {
 
   it("reads nothing again for an equal list of disks, and keeps its buttons, its folders and Neuer Ordner", async () => {
     const r = renderNav();
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     const disk = r.getByRole("button", { name: "/mnt/usb1 · exfat · 400 GB frei" });
     const folder = r.getByRole("button", { name: "Fotos" });
     fireEvent.click(r.getByRole("button", { name: "Neuer Ordner …" }));
@@ -172,7 +222,7 @@ describe("Navigator", () => {
           apiError(409, "exists", "there is a Fotos in /mnt/daten already", { field: "name" }),
       },
     });
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     fireEvent.click(r.getByRole("button", { name: "Neuer Ordner …" }));
     type(r.getByLabelText("Name des neuen Ordners"), "Fotos");
     fireEvent.click(r.getByRole("button", { name: "Anlegen" }));
@@ -199,7 +249,7 @@ describe("Navigator", () => {
 
   it("has no Neuer Ordner without allowMkdir", async () => {
     const r = renderNav({ allowMkdir: false });
-    await waitFor(() => expect(r.folders()).toEqual(["Filme", "Fotos"]));
+    await waitFor(() => expect(r.folders()).toEqual(["..", "Filme", "Fotos"]));
     expect(r.queryByRole("button", { name: "Neuer Ordner …" })).toBeNull();
   });
 
@@ -234,14 +284,15 @@ describe("Navigator", () => {
     expect(await cut.findByText("Hier sind mehr Ordner, als die Liste zeigt.")).toBeTruthy();
   });
 
-  it("says that no data disk is mounted", () => {
-    stubApi({});
+  it("shows /, and reads it, with no mount in the list", async () => {
+    const api = stubApi({ [browseRoute("/")]: () => json(browse("/", ["etc"])) });
     const r = renderExt(
-      () => <Navigator mounts={[]} value="" onChange={() => {}} allowMkdir />,
+      () => <Navigator mounts={[]} value="/" onChange={() => {}} allowMkdir />,
       undefined,
       "de",
     );
-    expect(r.getByText("Keine Datenplatte ist eingehängt.")).toBeTruthy();
+    expect(await r.findByRole("button", { name: "etc" })).toBeTruthy();
+    expect(api.sent("GET", "/browse?dir=%2F")).toHaveLength(1);
   });
 });
 

@@ -76,10 +76,10 @@ func hasChildren(dirfd int, name string) bool {
 	return len(names) > 0
 }
 
-// List returns the directories in dir (an absolute path below the root), sorted by name, without the directories of the
-// system (SystemDir: /var/lib and /var/log in /var). Links are no directories here: they are not listed, and no path
-// that leads through one is opened (a *safefs.LinkError). It returns at most limit of them (which is at least 1), and
-// true when there were more.
+// List returns the directories in dir (an absolute path below the root), sorted by name, without /proc, /sys and /dev at
+// the top of the tree (the kernel's, which no share is made of). Links are no directories here: they are not listed, and
+// no path that leads through one is opened (a *safefs.LinkError). It returns at most limit of them (which is at least 1),
+// and true when there were more.
 func List(root safefs.Root, dir string, limit int) ([]Entry, bool, error) {
 	if limit < 1 {
 		return nil, false, fmt.Errorf("the limit %d is below 1", limit)
@@ -97,7 +97,7 @@ func List(root safefs.Root, dir string, limit int) ([]Entry, bool, error) {
 	if err != nil {
 		return nil, false, &fs.PathError{Op: "read", Path: dir, Err: err}
 	}
-	names = slices.DeleteFunc(names, func(n string) bool { return SystemDir(path.Join(dir, n)) })
+	names = slices.DeleteFunc(names, func(n string) bool { return dir == "/" && (n == "proc" || n == "sys" || n == "dev") })
 	sort.Strings(names)
 	truncated := len(names) > limit
 	if truncated {

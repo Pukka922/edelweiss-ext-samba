@@ -1,11 +1,12 @@
 # edelweiss-ext-samba
 
-> **Note:** This project is vibe coded, for lack of time, and made only for my personal use: to share the data disks of
-> my Raspberry Pi and my x86 box with Windows, macOS and phones. Anyone is welcome to use it, but at their own risk.
+> **Note:** This project is vibe coded, for lack of time, and made only for my personal use: to share the disks and
+> folders of my Raspberry Pi and my x86 box with Windows, macOS and phones. Anyone is welcome to use it, but at their
+> own risk.
 
 Samba shares set up like on a NAS, as an extension of [edelweiss](https://github.com/Pukka922/edelweiss), the web
-administration interface for Alpine Linux. Its page **Shares** ("Freigaben", menu section System) shares folders of the
-data disks over the network without SSH, for Windows, macOS and phones. Texts are in English and German.
+administration interface for Alpine Linux. Its page **Shares** ("Freigaben", menu section System) shares folders
+over the network without SSH, for Windows, macOS and phones. Texts are in English and German.
 
 It is one static binary with a Go backend (`main.go`, `routes.go`, `internal/`) and a SolidJS interface (`ui/`), built
 with the edelweiss SDKs.
@@ -20,10 +21,10 @@ at the end of Tests, which is for you to run.
 
 ## What it does
 
-- **Shares.** A share is a folder of a mounted data disk with a name in the network, an optional description, and a table
-  of rights: for each Samba user "no access", "read" or "read and write". A share without rights for a user is hidden
-  from that user; the switch "hidden" hides it from everyone (it is reached by `\\host\name` only). Deleting a share
-  removes the share and nothing else: the folder and its files stay.
+- **Shares.** A share is any folder of the system (on a data disk or the system disk, `/` itself) with a name in the
+  network, an optional description, and a table of rights: for each Samba user "no access", "read" or "read and write".
+  A share without rights for a user is hidden from that user; the switch "hidden" hides it from everyone (it is reached
+  by `\\host\name` only). Deleting a share removes the share and nothing else: the folder and its files stay.
 - **Users.** One list of "Samba users" with two kinds: host users with Samba access (an existing user with a UID from
   1000, whose Linux password you give once; Samba gets the same password), and pure Samba users that the extension
   creates (no home directory, shell `/sbin/nologin`, a locked Linux password, so no SSH, no console and no edelweiss
@@ -31,19 +32,60 @@ at the end of Tests, which is for you to run.
 - **An existing folder is shared as it is.** Samba works as the owner and the group of the shared folder (`force user`,
   `force group`), and the extension never changes the owner, the mode or the content of the files in it. New files are
   0644 and new folders 0755 (`map archive = no`: the DOS attributes stay in an extended attribute, not in the mode). A
-  folder of root is refused (nothing is shared as root); a folder whose owner or group has no account on this host (a
+  folder of root is shared as root (see Risky folders); a folder whose owner or group has no account on this host (a
   disk from another machine) can be shared after you confirm a service account `smb-<uid>` with exactly that ID, which
   has no login. Its group is the group of the folder's GID, or a new `smb-<gid>`; the IDs lie in 1000 to 65532, so new
   users of the host do not get them afterwards. A NAS disk whose files belong to the group `users` (GID 100, as on
   Synology and QNAP) gets an account in `users`; any other group of the system is refused, and the dialog names it. "New
   folder" in the navigator makes a folder with the owner and group of its parent, or, below a folder of root, with the
-  account `edelweiss-share`. "New folder" is not offered inside the folder of a share: a share of it could never be
-  made.
-- **System folders are never shared.** The navigator offers the mounted data disks only, and on them no folder of the
-  system: `/usr`, `/var/lib`, `/var/log`, `/var/cache`, `/var/spool`, `/var/tmp`, `/var/run`, `/var/lock` and
-  `/var/empty` (with `/proc`, `/sys`, `/dev`, `/run`, `/tmp`, `/etc` and `/boot`) are not listed, not opened, and refused
-  as the folder of a share or for "New folder", also when `/var` is a disk of its own, as in Alpine's data mode. `/var`
-  itself is offered there, but only its other folders can be shared.
+  account `edelweiss-share`, so that it is not root's. "New folder" is not offered inside the folder of a share: a share
+  of it could never be made.
+- **Risky folders need a confirmation.** The navigator starts at `/` and shows the whole tree over all disks. Any folder
+  can become a share, with a red warning and the checkbox "Ich weiß, was ich tue". The dialog shows the warnings of the
+  chosen folder as one red alert, a line each, and "Anlegen" or "Speichern" stays disabled until the box is ticked;
+  another folder unticks it. Every edit of a share with warnings needs the box, a change of the description included.
+  The API takes `acknowledge`, the list of the warning codes the user saw and confirmed: every warning that the folder
+  has now has to be in it, else the answer is 409 `confirm_needed` with all the current codes in `warnings`, and
+  nothing changes. The share stores the confirmed codes (`acknowledged` in its config, left out when there are none, so
+  that a config of 0.1.0 is written back byte for byte). The warnings are:
+  - `system`: the folder is a system folder or holds one (`/`, `/etc`, `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64`,
+    `/root`, `/boot*`, `/run`, `/tmp`, `/var`, `/var/lib`, ...), or it is on the medium that Alpine boots from (the
+    `LBU_MEDIA` of `lbu.conf`, a medium with `apks/` or a `*.apkovl.tar.gz`, the medium of the modloop) or holds it;
+  - `root_owned`: it belongs to root. Samba then works as root (`force user = root`), so whoever may read there sees
+    everything in it, and whoever may write is practically root on the machine;
+  - `holds_mount`: another disk is mounted inside it. Without that disk what is written lands in the empty folder of
+    this disk. The check "Platte fehlt" protects only a share that is directly on a disk, so a share of `/` stays
+    available when a USB disk below it is unplugged;
+  - `ram`: the folder is in RAM (tmpfs, ramfs, a RAM disk), as in diskless mode, and is empty after a restart.
+- **A share that is not confirmed is not served.** A share whose folder has the warning `system` or `root_owned` that
+  its confirmed codes do not hold is left out of `smb.conf` (skip reason `unconfirmed`) until it is confirmed. This is
+  how a folder that came to belong to root later is handled, and so is a share of 0.1.0 that was left out because its
+  folder belonged to root: it stays out after the update. The page says "Bestätigung nötig"; editing the share shows
+  the warnings and the box, and saving with the box ticked stores the codes, after which the share is served again, as
+  root where the folder is root's. `holds_mount` and `ram` that appear later do not leave a share out.
+- **Kernel folders are never shared.** `/proc`, `/sys` and `/dev` (and anything on a pseudo file system: proc, sysfs,
+  devtmpfs, cgroup, rpc_pipefs, ...) are interfaces to the kernel: a write over the network can restart the machine or
+  overwrite a disk. They are not listed, not opened and refused (`kernel`). In a share of `/`, `smb.conf` hides them
+  (`veto files = /proc/sys/dev/`, at every depth: folders with those names are hidden everywhere in that share, also
+  as `PROC`), and the share follows no links (`follow symlinks = no`): a link such as `etc/mtab` to `/proc/mounts` lies
+  inside the share, and `wide links = no` does not stop it. Shares still do not nest, so a share of `/` excludes every
+  other share.
+- **A share must not hold a mounted kernel tree.** A proc, sysfs, devtmpfs or devpts that is mounted strictly below the
+  folder of a share (a chroot with bind mounts below `/srv`) is refused when it is not hidden by a veto name of the
+  share: the create and the edit answer 400 `invalid_input` with the reason `kernel`, and a share that has one later is
+  not available ("kernel" in the view, and the connect is refused). Only the share of `/` is covered, by its veto of
+  `proc`, `sys` and `dev`. Other pseudo mounts below a share (nsfs, the `rpc_pipefs` of nfs-utils, cgroup) are not
+  hidden and not refused; they are rare on Alpine, and the warning `holds_mount` applies to a share that holds one. The
+  folder routes (folder rights, restore) refuse a folder whose absolute path is a kernel folder, and the navigator
+  leaves such mount points out of its lists.
+- **No folder rights for system folders, folders of root and home directories.** Switching a share to folder rights
+  makes every file in it writable for the group (`/etc/shadow` or `sudoers` would then be refused by ssh and sudo, and
+  a `.ssh` of a home would stop the login with a key), and the group would be root's. Turning them on or setting a
+  folder's rights in a share with the warning `system` or `root_owned`, or whose folder is or holds the home directory
+  of a user of `/etc/passwd` (one that exists, apart from `/`, `/dev/null` and `/var/empty`) or holds a `.ssh` directly
+  in it, is refused (409 `folder_rights_unsafe`, with the `warnings`, and `home` for a home: it is no share warning,
+  only a reason here). A folder inside a home is fine. Taking rights away and "apply again" stay possible. The
+  `warnings` of each share are in the view.
 - **Folder rights.** A share can be opened as a tree of folders; each folder gets rights of its own (see Folder rights).
 - **Recycle bin.** A file deleted over the network lands in `#recycle` of the share, with its folder path, for a number
   of days (30 by default). The admin sees the bin, restores single files and empties it (see Recycle bin).
@@ -205,15 +247,42 @@ own. "Rights of the share" takes them away again.
   never stops it or takes it out of the runlevel. With the display in the network on, it still writes `allow-interfaces`
   (the chosen local interfaces) and `use-ipv6=no` into its `[server]` section, which then hold for the other services of
   that avahi too.
-- **An unplugged disk:** a share whose folder is on a mount point that is not mounted shows "Platte fehlt", Samba refuses
-  every connection to it (`root preexec close`), and nothing is written into the empty mount point. When the disk is
-  back, the share works again without anything done.
+- **An unplugged disk:** a share on a disk that is not mounted any more shows "Platte fehlt", Samba refuses every
+  connection to it (`root preexec close`), and nothing is written into the empty mount point. When the disk is back,
+  the share works again without anything done. Three more rules keep the empty mount point empty:
+  - the edit of a share that keeps its folder is refused (`unavailable`) while its disk is away, else the share would
+    be recorded on the system disk and serve the empty mount point; an edit to another folder is judged as a new one;
+  - a new share, an edit to another folder and "New folder" refuse a folder at or below a mount point of
+    `/etc/fstab` that is not mounted now (400 `invalid_input`, reason `not_mounted`; comments, `none`, swap and `/` are
+    not looked at);
+  - a share on a RAM file system (tmpfs, ramfs, a RAM disk) is recognized after a restart by its mount point and its
+    type: tmpfs gets a new `f_fsid` at every mount. This holds for every share on `/` in diskless mode, and on `/run`,
+    `/tmp` or zram.
 
 ## Diskless and data mode
 
 The extension detects sys, diskless and data mode itself. In diskless and data mode every change of `/etc` (the
 configuration, the accounts) is saved at once with `lbu commit`. In diskless mode, `/var` is RAM: the setup adds
 `/var/lib/samba` (the Samba users, the share ACLs, the machine SID) with `lbu include`, so that they survive a reboot.
+
+## Changes in 0.2.0
+
+- Any folder can be shared, with warnings that need a confirmation (see "What it does"); only `/proc`, `/sys` and `/dev`
+  stay out.
+- The navigator of the page starts at `/` and offers every mount as a quick jump ("Systemplatte (/)", or "System (/, im
+  RAM)", then each other mount point with its free space), where 0.1.0 offered the data disks only; mounts below `/run`,
+  `/var/lib/docker` and `/var/lib/containers` and overlay mounts are left off the buttons. It never lists `/proc`,
+  `/sys` or `/dev`, and it gives the medium that Alpine boots from the warning `system` too.
+- In the folder tree, a share with the warning `system` or `root_owned` is read-only, with the reason (see "No folder
+  rights for system folders, folders of root and home directories"); folders that already have rights keep the way to
+  remove them ("Rechte der Freigabe übernehmen"), and "erneut anwenden" stays: the dialog of such a share offers only
+  those two.
+- A share that 0.1.0 left out of `smb.conf` because its folder had come to belong to root (`root_owned`) stays out after
+  the update until it is confirmed ("Bestätigung nötig", see "A share that is not confirmed is not served"); it is not
+  served as root by itself. A share of 0.1.0 on a data disk without warnings is served as before.
+- Shares on a RAM file system survive a restart, a share does not write into the empty mount point of a disk that is
+  away, a share of `/` follows no links, and no share holds a mounted proc, sysfs, devtmpfs or devpts that its veto does
+  not hide (see "An unplugged disk" and "A share must not hold a mounted kernel tree").
 
 ## Living with ext-users 0.2.0
 
@@ -285,9 +354,9 @@ OpenRC. Two files of this repository prepare it for this extension:
   - `init: true`. Docker's init becomes PID 1, and the entrypoint, which execs edelweissd, runs as its child. edelweissd
     does not reap the processes that end, so as PID 1 it would leave them as zombies (every daemon that stops). The init
     reaps them.
-  - the named volume `samba-dev` at `/srv/samba-dev`. That is a real disk file system (ext4 on the WSL host), which the
-    navigator of the page offers as a data disk; the root of the container is an overlay, which it does not. Make the
-    folder to share below it with "New folder".
+  - the named volume `samba-dev` at `/srv/samba-dev`. That is a real disk file system (ext4 on the WSL host), on which
+    folder rights work (the root of the container is an overlay, which has no extended attributes: a share there has no
+    folder rights). Make the folder to share below it with "New folder".
 
   The overlay adds no `cap_add`. The dev container has `SYS_ADMIN` from edelweiss's own `dev/compose.yaml`, so the folder
   rights work there as on a host.
@@ -338,7 +407,7 @@ Nothing in the tests installs Samba, avahi or wsdd, starts `smbd`, or runs `pdbe
 `adduser` or `deluser` on the machine you work on.
 
 - **Unit tests** (`make test`): Go with the race detector, against temporary trees of `/etc`, `/proc`, `/run` and the
-  data disks, and a fake runner: the parsers against the captured outputs of the real Samba (`internal/samba/testdata`,
+  disks, and a fake runner: the parsers against the captured outputs of the real Samba (`internal/samba/testdata`,
   whose README says how they were captured), the rendering of `smb.conf` and the interface rules, the account files and
   the password check, the setup as a plan, the jobs and their runner (locks, cancel), the folder rights (the encoder of
   `security.NTACL` byte for byte against the capture), the recycle bin, every action as its plan, and the API. Then the UI
@@ -377,6 +446,7 @@ counts as passed only when its output has the `--- PASS:` line of its test.
 | `TestSambaOnlyLogin` | a pure Samba user cannot sign in with its Samba password to the system (shell, locked password, sshd), a host user can |
 | `TestForeignSambaBackedUp` | a Samba that runs before the setup: `smb.conf` and the databases are kept as `.edelweiss-bak` byte for byte, the extension starts empty, and a second setup leaves the backups |
 | `TestDiscoveryInterfaces` | `NET_ADMIN`: wsdd and avahi answer on the chosen interfaces only, and stop when none is chosen |
+| `TestShareSystemFolders` | shares of `/` and of `/etc` with the confirmation (a create without it is refused, `/proc` is refused as a kernel folder): `smbclient` lists `etc` and `home`, cannot list or enter `proc`, `sys` and `dev`, and sees `passwd` in the share of `/etc` |
 | `TestEndToEndACL` | `SYS_ADMIN`: the folder rights through the API: `needs_convert` (with the count and `capped`), the conversion as a job with progress and a cancel, rights per user for three users with `smbclient`, a restore into a folder that is gone, and the manifest of the data of before, which shows only the bits of the conversion |
 
 ### Hardware checklist
@@ -414,12 +484,24 @@ For you, on the machines you run it on. Note what you see where a line says "not
 - [ ] A scheduled clean-up of a recycle bin with a short period (1 day) works: `crond` runs after the boot and the old
   files are gone the next day.
 
+**A share of `/`**
+
+- [ ] From Windows and from macOS, open a share of `/`: `proc`, `sys` and `dev` are not listed and cannot be opened,
+  also not as `PROC`; a link that leads into `/proc` (`ln -s /proc/version /srv/kernlink`) cannot be read.
+- [ ] A share of `/etc` in diskless mode, after a reboot of the host: it is still available (not "Platte fehlt") and
+  works.
+- [ ] A folder that is chowned to root later (`chown root` on the folder of a share, as root): the share is left out and
+  the page says "Bestätigung nötig"; editing it, ticking the box and saving makes it available again.
+
 **An unplugged USB disk**
 
 - [ ] Pull the disk of a share: the page shows "Platte fehlt", a connection to the share is refused, and nothing appears
   in the empty mount point (`ls -A` on it). Plug it in and mount it: the share works again without anything done.
 - [ ] Pull the disk while a client is connected to its share and has a folder of it open: note what the client sees and
   whether anything appears in the empty mount point (`ls -A` on it, also after the client tries to write).
+- [ ] With a share of `/` and a USB disk mounted below it, pull the disk: the share of `/` stays available, and a client
+  that writes into the folder of the disk writes into the empty mount point on the system disk (the warning
+  `holds_mount` is the confirmed risk); note what you see.
 
 **On every host**
 

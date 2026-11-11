@@ -46,7 +46,7 @@ const isID = (n: unknown): n is number => typeof n === "number" && Number.isInte
 
 /**
  * The text of an invalid_input from its field and reason: the reason with a text of its own (errors.reason.<reason>: why a
- * folder was refused, not_absolute, no_data_mount, link, not_dir, per_user, per_user_disk_changed, system_dir), else the text of the
+ * folder was refused, not_absolute, no_data_mount, kernel, link, not_dir, per_user, per_user_disk_changed, in_share), else the text of the
  * field (errors.field.<field>, with the message of the server). Undefined for a field without a text.
  */
 function inputText(err: ApiError, t: Translator["t"]): string | undefined {

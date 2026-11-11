@@ -368,6 +368,40 @@ describe("FolderRightsDialog", () => {
     expect(r.onDone).toHaveBeenCalledWith("„Fotos/Steuern“ hat wieder die Rechte von oben.");
   });
 
+  it("offers a read-only share only taking its rights back and applying them again, no new rights", async () => {
+    vi.useFakeTimers();
+    const limited = share({ perUser: true, folders: ["Steuern"], warnings: ["system"] });
+    const r = renderDialog({ share: limited, routes: jobDone() });
+    await settle();
+    for (const radio of within(r.dialog()).getAllByRole("radio")) {
+      expect((radio as HTMLInputElement).disabled, radio.getAttribute("aria-label") ?? "").toBe(true);
+    }
+    expect(r.dialog().textContent).toContain("Für Systemordner, Ordner von root und Home-Verzeichnisse");
+    // nothing to apply while the folder is not mixed; taking the rights back stays
+    expect(r.button("Anwenden").disabled).toBe(true);
+    expect(r.button("Rechte der Freigabe übernehmen").disabled).toBe(false);
+    fireEvent.click(r.button("Rechte der Freigabe übernehmen"));
+    await settle();
+    expect(r.jobs()).toEqual([{ kind: "folder-rights", name: "Fotos", folder: "Steuern", inherit: true }]);
+  });
+
+  it("applies a mixed state of a read-only share again, with the rights it has", async () => {
+    vi.useFakeTimers();
+    const limited = share({ perUser: true, folders: ["Steuern"], warnings: ["root_owned"] });
+    const r = renderDialog({
+      share: limited,
+      answer: steuern({ disk: { rights: { anna: "write" }, mixed: true, partial: false } }),
+      routes: jobDone(),
+    });
+    await settle();
+    expect(r.button("Erneut anwenden").disabled).toBe(false);
+    fireEvent.click(r.button("Erneut anwenden"));
+    await settle();
+    expect(r.jobs()).toEqual([
+      { kind: "folder-rights", name: "Fotos", folder: "Steuern", rights: { anna: "write", ben: "read" } },
+    ]);
+  });
+
   it("has nothing to take back for a folder without rights of its own, and waits for a change", async () => {
     const r = renderDialog({ answer: folders("Steuern") });
     await waitFor(() => expect(within(r.dialog()).queryAllByRole("radiogroup")).toHaveLength(3));

@@ -42,7 +42,7 @@ var viewServices = []string{"dbus", "avahi-daemon", "samba", "wsdd", "crond"}
 //   - Users are the Samba users (pdbedit -L -v), HostUsers the host users that can get Samba access. UsersKnown says
 //     whether the Samba users could be read: pdbedit needs root, so the process of a user never can. Without them Users
 //     and HostUsers are empty and say nothing, and no share is no_users for want of them (actions.SkippedUsersUnknown).
-//   - Mounts are the data disks a share can be on, Ifaces the network interfaces, Services whether each service is
+//   - Mounts are the mounts a share can be on, Ifaces the network interfaces, Services whether each service is
 //     started.
 //   - UsersExt says whether edelweiss-ext-users is installed, and its version.
 //   - Job is the newest job while it runs or is interrupted.
@@ -79,8 +79,12 @@ type SettingsView struct {
 //   - Folders are the folders with rights of their own (the markers of the folder rights), from the top down.
 //   - Available says whether its folder can be served now (paths.Available), Reason why not: unmounted (the disk is not
 //     there), missing, link or no_owner.
-//   - Skipped is why Render leaves the share out of smb.conf (samba.Skip*: no_users, no_owner, root_owned, ...), "" for a
-//     share that smbd serves.
+//   - Skipped is why Render leaves the share out of smb.conf (samba.Skip*: no_users, no_owner, unconfirmed, ...), "" for a
+//     share that smbd serves. Unconfirmed are the warnings that are missing then (samba.Unconfirmed: system and root_owned
+//     that its folder has now and the share never confirmed), [] for none: the edit dialog confirms them.
+//   - Warnings are the warnings of its folder as it is now (paths.WarningsFor: system, root_owned, holds_mount, ram), [] for
+//     none; root_owned is only told where the folder is read (Available). The page makes the folder tree read-only for a
+//     share with system or root_owned.
 //   - Owner is the owner of its folder and RecycleBin the size of its recycle bin, only for a share that is available
 //     (nothing is read where its disk is not); RecycleBin only with the recycle bin on.
 type ShareView struct {
@@ -97,6 +101,8 @@ type ShareView struct {
 	Available   bool                   `json:"available"`
 	Reason      string                 `json:"reason"`
 	Skipped     string                 `json:"skipped"`
+	Warnings    []string               `json:"warnings"`
+	Unconfirmed []string               `json:"unconfirmed"`
 	Owner       *OwnerView             `json:"owner,omitempty"`
 	RecycleBin  *SummaryView           `json:"recycleBin,omitempty"`
 }
@@ -135,13 +141,15 @@ type HostUserView struct {
 	Reason     string `json:"reason,omitempty"`
 }
 
-// MountView is a data disk (paths.DataMount): Xattr says that it keeps what the folder rights need.
+// MountView is a mount a share can be on (paths.ShareMount, "/" included): Xattr says that it keeps what the folder rights
+// need, Ram that it is in RAM and gone after a restart.
 type MountView struct {
 	Point string `json:"point"`
 	Type  string `json:"type"`
 	Total uint64 `json:"total"`
 	Free  uint64 `json:"free"`
 	Xattr bool   `json:"xattr"`
+	Ram   bool   `json:"ram"`
 }
 
 // IfaceView is a network interface (samba.Iface): Bridge for a bridge of Docker or libvirt, which Samba never binds.
@@ -190,7 +198,7 @@ func (a *API) view(c fiber.Ctx) error {
 		st.Foreign = foreign
 	}
 
-	env := actions.Env{FS: fsys, Binary: a.Binary}
+	env := actions.Env{FS: fsys, Binary: a.Binary, OwnerOf: a.OwnerOf}
 	cfg, set, err := samba.Load(fsys)
 	if err != nil {
 		slog.Warn("samba: the config cannot be read", "err", err)
@@ -213,8 +221,8 @@ func (a *API) view(c fiber.Ctx) error {
 	if env.Mounts, err = fsys.Mounts(); err != nil {
 		slog.Warn("samba: the mounts cannot be read", "err", err)
 	}
-	if env.Data, err = paths.DataMounts(fsys, a.statfs()); err != nil {
-		slog.Warn("samba: the data disks cannot be read", "err", err)
+	if env.Data, err = paths.ShareMounts(fsys, a.statfs()); err != nil {
+		slog.Warn("samba: the disks cannot be read", "err", err)
 	}
 
 	return c.JSON(ViewResponse{
@@ -248,6 +256,7 @@ func (a *API) configView(env actions.Env, usersKnown bool) ConfigView {
 		return v
 	}
 	defer root.Close()
+	boot := paths.BootMedia(env.FS, env.Mounts) // once for all shares
 	for _, s := range cfg.Shares {
 		sv := ShareView{Name: s.Name, Path: s.Path, Comment: s.Comment, Mount: s.Mount, Rights: orEmptyMap(s.Rights),
 			Hidden: s.Hidden, Recycle: s.Recycle, RecycleDays: s.RecycleDays, PerUser: s.PerUser,
@@ -255,15 +264,22 @@ func (a *API) configView(env actions.Env, usersKnown bool) ConfigView {
 		slices.SortStableFunc(sv.Folders, func(x, y string) int { return strings.Count(x, "/") - strings.Count(y, "/") })
 		sv.Folders = orEmpty(sv.Folders)
 		sv.Available, sv.Reason = paths.Available(env.FS, s)
+		uid := -1 // not read where the disk is not there
 		if sv.Available {
 			if o, err := a.ownerOf(root, s.Path, env.DB); err == nil {
 				sv.Owner = &OwnerView{UID: o.UID, GID: o.GID, User: o.User, Group: o.Group}
+				uid = o.UID
 			}
 			if s.Recycle {
 				if sum, err := recycle.Sum(root.OnDisk(s.Fsid), s.Path, sumBudget); err == nil {
 					sv.RecycleBin = &SummaryView{Files: sum.Files, Bytes: sum.Bytes, Partial: sum.Partial}
 				}
 			}
+		}
+		sv.Warnings = append([]string{}, paths.WarningsOn(env.Mounts, boot, s.Path, uid)...)
+		sv.Unconfirmed = []string{}
+		if sv.Skipped == samba.SkipUnconfirmed {
+			sv.Unconfirmed = samba.Unconfirmed(sv.Warnings, s.Acknowledged)
 		}
 		v.Shares = append(v.Shares, sv)
 	}
@@ -318,10 +334,10 @@ func hasEntry(users []samba.SambaUser, name string) bool {
 	return slices.ContainsFunc(users, func(u samba.SambaUser) bool { return u.Name == name })
 }
 
-func mountViews(data []paths.DataMount) []MountView {
+func mountViews(data []paths.ShareMount) []MountView {
 	out := make([]MountView, 0, len(data))
 	for _, m := range data {
-		out = append(out, MountView{Point: m.Point, Type: m.Type, Total: m.Total, Free: m.Free, Xattr: m.Xattr})
+		out = append(out, MountView{Point: m.Point, Type: m.Type, Total: m.Total, Free: m.Free, Xattr: m.Xattr, Ram: m.Ram})
 	}
 	return out
 }

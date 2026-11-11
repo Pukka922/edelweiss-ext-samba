@@ -143,6 +143,65 @@ describe("FolderTree", () => {
     expect(r.queryByRole("button", { name: "2024" })).toBeNull();
   });
 
+  it("is there to look at only for a share with the warning system or root_owned, and says why", async () => {
+    const UNSAFE =
+      "Für Systemordner, Ordner von root und Home-Verzeichnisse gibt es keine Ordner-Rechte: Das Umstellen würde jede Datei darin für die Gruppe schreibbar machen – bei einem Home sperrt das die Anmeldung per SSH-Schlüssel.";
+    for (const warnings of [["system"], ["root_owned"], ["system", "root_owned", "holds_mount"]]) {
+      const r = renderTree({ share: share({ perUser: true, folders: ["Steuern"], warnings }) });
+      expect(await r.findByText(UNSAFE)).toBeTruthy();
+      await waitFor(() => expect(r.line("2024")).toBeTruthy());
+      // a folder without rights of its own cannot be given any
+      expect(r.queryByRole("button", { name: "2024" })).toBeNull();
+      expect(r.queryByRole("button", { name: "Urlaub Italien" })).toBeNull();
+      // what is in a folder can still be looked at
+      expect(r.getByRole("button", { name: "Unterordner von Steuern" })).toBeTruthy();
+      cleanup();
+    }
+    // the other warnings leave the tree as it is
+    const plain = renderTree({ share: share({ perUser: true, warnings: ["holds_mount", "ram"] }) });
+    expect(await plain.findByRole("button", { name: "2024" })).toBeTruthy();
+    expect(plain.queryByText(/gibt es keine Ordner-Rechte/)).toBeNull();
+  });
+
+  it("keeps removing existing rights and erneut anwenden in a tree that is read-only for its warnings", async () => {
+    const r = renderTree({
+      share: share({ perUser: true, folders: ["Steuern"], warnings: ["root_owned"] }),
+      routes: {
+        [foldersRoute("Fotos", "")]: () =>
+          json(
+            folders("", ["2024", { name: "Steuern", hasChildren: false, own: true }], {
+              disk: { rights: {}, mixed: true, partial: false },
+            }),
+          ),
+        [foldersRoute("Fotos", "Steuern")]: () =>
+          json(
+            folders("Steuern", [], {
+              own: true,
+              from: "Steuern",
+              rights: { anna: "write" },
+              disk: { rights: { anna: "write" }, mixed: true, partial: false },
+            }),
+          ),
+      },
+    });
+    // the folder with rights of its own opens its rights (to remove them) ...
+    fireEvent.click(await r.findByRole("button", { name: "Steuern" }));
+    expect(r.onFolder).toHaveBeenLastCalledWith("Steuern");
+    // ... a mixed one has erneut anwenden, the share's own folder too
+    await waitFor(() => expect(r.line("Steuern")?.textContent).toContain("gemischter Stand"));
+    fireEvent.click(
+      within(r.line("Steuern") as HTMLElement).getByRole("button", { name: "erneut anwenden" }),
+    );
+    expect(r.onFolder).toHaveBeenLastCalledWith("Steuern");
+    const note = await r.findByText(/Gemischter Stand in der Freigabe selbst/);
+    fireEvent.click(
+      within(note.parentElement as HTMLElement).getByRole("button", { name: "erneut anwenden" }),
+    );
+    expect(r.onFolder).toHaveBeenLastCalledWith("");
+    // a folder without rights of its own gets none
+    expect(r.queryByRole("button", { name: "2024" })).toBeNull();
+  });
+
   it("shows a mixed state with erneut anwenden, which opens the rights of the folder", async () => {
     const r = renderTree({
       routes: {

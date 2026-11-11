@@ -46,7 +46,8 @@ TestOddPassword run.sh -
 TestSambaOnlyLogin run.sh -
 TestForeignSambaBackedUp run.sh -
 TestDiscoveryInterfaces run.sh NET_ADMIN
-TestEndToEndACL run.sh SYS_ADMIN'
+TestEndToEndACL run.sh SYS_ADMIN
+TestShareSystemFolders run.sh -'
 # The scenarios that may have NET_ADMIN: a public source address, and a second interface.
 NET_ADMIN_TESTS='TestHostsAllow TestDiscoveryInterfaces'
 LOG=${TEST_ALPINE_LOG:-}

@@ -111,3 +111,52 @@ func TestLoadRejects(t *testing.T) {
 		}
 	}
 }
+
+// A config of 0.1.0 (no acknowledged codes) is written back byte for byte; the codes of a confirmed share are kept.
+func TestConfigAcknowledgedRoundTrip(t *testing.T) {
+	old := []byte(`{
+  "version": 1,
+  "settings": {
+    "name": "NAS"
+  },
+  "shares": [
+    {
+      "name": "Fotos",
+      "path": "/srv/fotos",
+      "mount": "/srv",
+      "fsid": "ext4:0123456789abcdef",
+      "rights": {
+        "anna": "read"
+      }
+    }
+  ]
+}
+`)
+	root := t.TempDir()
+	file := filepath.Join(root, samba.ConfigPath)
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, ok, err := samba.Load(host.FS{Root: root})
+	if err != nil || !ok {
+		t.Fatalf("Load = (_, %v, %v)", ok, err)
+	}
+	if got := c.JSON(); string(got) != string(old) {
+		t.Errorf("0.1.0 config:\n got %s\nwant %s", got, old)
+	}
+	c.Shares[0].Acknowledged = []string{"system", "root_owned"}
+	data := c.JSON()
+	if !strings.Contains(string(data), `"acknowledged": [`) {
+		t.Errorf("no acknowledged in %s", data)
+	}
+	if err := os.WriteFile(file, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := samba.Load(host.FS{Root: root})
+	if err != nil || !reflect.DeepEqual(got.Shares[0].Acknowledged, []string{"system", "root_owned"}) {
+		t.Errorf("round trip: %v, %v", got.Shares[0].Acknowledged, err)
+	}
+}

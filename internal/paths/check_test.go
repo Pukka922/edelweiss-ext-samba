@@ -151,3 +151,86 @@ func TestAvailable(t *testing.T) {
 		refused(t, fs, s, "no_owner")
 	})
 }
+
+// A share on / is available: it records / and the file system of the root. A share recorded on a disk that is gone is
+// unmounted, whatever the mount below / holds.
+func TestAvailableOnRoot(t *testing.T) {
+	root := t.TempDir()
+	fs := mounts(t, root, "/dev/sda1 / ext4 rw 0 0", "/dev/sdb1 /media/usb ext4 rw 0 0")
+	mkdirs(t, root, "media/usb/files")
+	accountsFor(t, root, os.Getuid(), os.Getgid())
+	fsid, err := paths.FsidOf(fs, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole := samba.Share{Name: "System", Path: "/", Mount: "/", Fsid: fsid}
+	if ok, reason := paths.Available(fs, whole); !ok {
+		t.Errorf("the share of /: %v, %q; want available", ok, reason)
+	}
+	usbID, err := paths.FsidOf(fs, "/media/usb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	usb := samba.Share{Name: "Usb", Path: "/media/usb/files", Mount: "/media/usb", Fsid: usbID}
+	if ok, reason := paths.Available(fs, usb); !ok {
+		t.Errorf("the share on the disk: %v, %q; want available", ok, reason)
+	}
+	write(t, root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\n") // the disk is unplugged
+	if ok, reason := paths.Available(fs, usb); ok || reason != paths.Unmounted {
+		t.Errorf("the share of the unplugged disk: %v, %q; want unmounted", ok, reason)
+	}
+	if ok, reason := paths.Available(fs, whole); !ok {
+		t.Errorf("the share of / after the unplug: %v, %q; want available", ok, reason)
+	}
+}
+
+// tmpfs gets a new f_fsid at every mount: a share on a RAM file system is the same share after a restart, so for it the
+// mount point and the type count, not the fsid. Any other share with another fsid is another disk.
+func TestAvailableRamFsid(t *testing.T) {
+	root := t.TempDir()
+	fs := mounts(t, root, "/dev/sda1 / ext4 rw 0 0", "tmpfs /mnt/ram tmpfs rw 0 0", "/dev/sdb1 /mnt/disk ext4 rw 0 0")
+	mkdirs(t, root, "mnt/ram/files", "mnt/disk/files")
+	accountsFor(t, root, os.Getuid(), os.Getgid())
+	ram := samba.Share{Name: "Ram", Path: "/mnt/ram/files", Mount: "/mnt/ram", Fsid: "tmpfs:0123456789abcdef"}
+	if ok, reason := paths.Available(fs, ram); !ok || reason != "" {
+		t.Errorf("tmpfs share, another fsid: %v, %q; want available", ok, reason)
+	}
+	disk := samba.Share{Name: "Disk", Path: "/mnt/disk/files", Mount: "/mnt/disk", Fsid: "ext4:0123456789abcdef"}
+	if ok, reason := paths.Available(fs, disk); ok || reason != paths.Unmounted {
+		t.Errorf("ext4 share, another fsid: %v, %q; want unmounted", ok, reason)
+	}
+	// a disk of another type on the mount point of the RAM share is another disk
+	write(t, root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\n/dev/sdc1 /mnt/ram ext4 rw 0 0\n")
+	if ok, reason := paths.Available(fs, ram); ok || reason != paths.Unmounted {
+		t.Errorf("ext4 on the mount point of the tmpfs share: %v, %q; want unmounted", ok, reason)
+	}
+	// the tmpfs is gone
+	write(t, root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\n")
+	if ok, reason := paths.Available(fs, ram); ok || reason != paths.Unmounted {
+		t.Errorf("tmpfs gone: %v, %q; want unmounted", ok, reason)
+	}
+}
+
+// A share that holds a mounted kernel tree that its veto names do not hide is not available.
+func TestAvailableKernelBelow(t *testing.T) {
+	root := t.TempDir()
+	fs := mounts(t, root, "/dev/sda1 / ext4 rw 0 0", "devtmpfs /srv/chroot/dev devtmpfs rw 0 0")
+	mkdirs(t, root, "srv/chroot/dev")
+	accountsFor(t, root, os.Getuid(), os.Getgid())
+	fsid, err := paths.FsidOf(fs, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := samba.Share{Name: "Srv", Path: "/srv", Mount: "/", Fsid: fsid}
+	if ok, reason := paths.Available(fs, srv); ok || reason != paths.KernelTree {
+		t.Errorf("share of /srv with a devtmpfs below: %v, %q; want kernel", ok, reason)
+	}
+	whole := samba.Share{Name: "System", Path: "/", Mount: "/", Fsid: fsid}
+	if ok, reason := paths.Available(fs, whole); !ok {
+		t.Errorf("share of / (the veto hides dev): %v, %q; want available", ok, reason)
+	}
+	write(t, root, "proc/mounts", "/dev/sda1 / ext4 rw 0 0\nnsfs /srv/chroot/dev nsfs rw 0 0\n")
+	if ok, reason := paths.Available(fs, srv); !ok {
+		t.Errorf("share of /srv with an nsfs below: %v, %q; want available", ok, reason)
+	}
+}

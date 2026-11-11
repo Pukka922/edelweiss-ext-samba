@@ -170,3 +170,6 @@ func FindTools(root string) Tools {
 		RcUpdate: find("rc-update"), RcService: find("rc-service"), Lbu: find("lbu"), Busybox: find("busybox"),
 		Install: find("install"), Rm: find("rm")}
 }
+
+// Unescape decodes the octal escapes of the proc files and of /etc/fstab (\040 for a space).
+func Unescape(s string) string { return unescape(s) }

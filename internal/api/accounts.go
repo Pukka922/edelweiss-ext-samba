@@ -364,7 +364,8 @@ func (a *API) deleteUser(c fiber.Ctx) error {
 
 // serviceAccount answers POST /service-accounts {path} (admin mode): the account for the owner of the folder at path,
 // which has none (accounts.CreateServiceAccount: smb-<uid> with exactly that UID, in the group of the GID). The folder is
-// below a data disk and reached through no link; one of root is root_owned, one whose owner has an account exists. lbu
+// on a disk a share can be on and reached through no link; one of root is root_owned (no account is made for uid 0: root
+// has its own, so this is a passwd without it), one whose owner has an account exists. lbu
 // commit saves it. When shares have that folder, they are rendered again in a job (service-account): Render left them
 // out. A folder that no share has yet (a share that is about to be added) gets the account alone.
 func (a *API) serviceAccount(c fiber.Ctx) error {
@@ -384,7 +385,7 @@ func (a *API) serviceAccount(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if _, err := a.onDataDisk("path", req.Path); err != nil {
+	if _, _, err := a.onShareDisk("path", req.Path); err != nil {
 		return err
 	}
 	root, err := safefs.Open(a.Root)

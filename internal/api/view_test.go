@@ -49,7 +49,7 @@ func TestViewForEverybody(t *testing.T) {
 	if want := []HostUserView{{Name: "carl", UID: 3002, Selectable: true}, {Name: "myUser", UID: os.Getuid(), Reason: "name"}}; !reflect.DeepEqual(v.HostUsers, want) {
 		t.Errorf("host users %+v, want %+v", v.HostUsers, want)
 	}
-	if want := []MountView{{Point: "/mnt/disk", Type: "ext4", Total: 1000, Free: 400, Xattr: true}}; !reflect.DeepEqual(v.Mounts, want) {
+	if want := []MountView{{Point: "/", Type: "ext4", Total: 1000, Free: 400, Xattr: true}, {Point: "/mnt/disk", Type: "ext4", Total: 1000, Free: 400, Xattr: true}}; !reflect.DeepEqual(v.Mounts, want) {
 		t.Errorf("mounts %+v, want %+v", v.Mounts, want)
 	}
 	if want := []IfaceView{
@@ -153,11 +153,11 @@ func TestViewMountsFile(t *testing.T) {
 		return out
 	}
 	f.api.MountsFile = "/tmp/mounts"
-	if got := points(); !slices.Equal(got, []string{"/mnt/disk", "/mnt/other"}) {
+	if got := points(); !slices.Equal(got, []string{"/", "/mnt/disk", "/mnt/other"}) {
 		t.Errorf("with the mounts file: %v", got)
 	}
 	f.api.MountsFile = ""
-	if got := points(); !slices.Equal(got, []string{"/mnt/disk"}) {
+	if got := points(); !slices.Equal(got, []string{"/", "/mnt/disk"}) {
 		t.Errorf("without it: %v", got)
 	}
 }

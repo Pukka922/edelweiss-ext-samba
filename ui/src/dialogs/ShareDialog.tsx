@@ -1,12 +1,12 @@
 import { ApiError, useI18n, useSession } from "@edelweiss/sdk";
-import { type Accessor, createEffect, createSignal, createUniqueId, on, Show } from "solid-js";
+import { type Accessor, createEffect, createSignal, createUniqueId, For, on, Show } from "solid-js";
 import type { OwnerView, Right, ShareRequest, ShareView, ViewResponse } from "../api";
 import { errorText, tSafe } from "../errors";
 import { serverName } from "../format";
 import { Check, Field, JobStatus, Modal } from "../Modal";
 import { ChangeButtons } from "./ChangeButtons";
 import { useChange } from "./change";
-import { cleanPath, mountOf, NavigatorDialog, useBrowse } from "./Navigator";
+import { cleanPath, NavigatorDialog, useBrowse } from "./Navigator";
 import { OwnerLine, ownerOf } from "./OwnerLine";
 import { RightsTable } from "./RightsTable";
 import { ServiceAccountDialog } from "./ServiceAccountDialog";
@@ -14,6 +14,9 @@ import { type FormField, fieldOf } from "./shareRefusal";
 
 /** How long the typing of a folder has to pause before its owner is read, in milliseconds. */
 export const CHECK_MS = 300;
+
+/** The warnings of a folder that the page has a text for (paths.Warn*). */
+const KNOWN_WARNINGS = ["system", "root_owned", "holds_mount", "ram"];
 
 /** The days a recycle bin keeps files (recycle.MinDays to recycle.MaxDays), and what a new one starts with. */
 const MIN_DAYS = 1;
@@ -32,7 +35,15 @@ const validDays = (days: string) =>
  * sent; a folder whose owner has no account (the server's rule: no name of its user or its group) offers "Dienstkonto
  * anlegen" (ServiceAccountDialog), and the line is read again once the account is there. A share with folder rights keeps
  * its folder. The folder of a share whose disk is not mounted says "Platte fehlt", as its row does, and is read again
- * when the disk is back; a folder that the server refuses with a reason (a link, on no data disk) is not sent either.
+ * when the disk is back; a folder that the server refuses with a reason (a link, /proc, /sys, /dev) is not sent either.
+ *
+ * Any folder can be a share. The warnings of the folder (GET /browse, or those of a 409 confirm_needed) stand as one red
+ * alert, one line each, and the share is only sent once "Ich weiß, was ich tue" is ticked, with acknowledge: the codes of
+ * the warnings that the alert showed; this goes for an edit too, and so for a share that smb.conf leaves out as
+ * unconfirmed (the folder came to belong to root since): saving it with the box ticked stores the confirmation. A 409
+ * confirm_needed always asks for the box, and when it names no warning that the page knows, the alert starts with
+ * errors.confirm_needed, so that nothing is sent again silently. Another folder unticks the box. Save waits until the
+ * folder is read.
  *
  * The change runs as a job (useChange). A refusal about a field (shareRefusal.fieldOf) is shown at that field, and the form
  * can be sent again; any other refusal stands below the form. Only users of the view get rights, so a
@@ -64,6 +75,11 @@ export function ShareDialog(props: {
   const [days, setDays] = createSignal(edit && edit.recycleDays > 0 ? String(edit.recycleDays) : "");
   const [refused, setRefused] = createSignal<Partial<Record<FormField, string>>>({});
   const [browsing, setBrowsing] = createSignal<string>();
+  const [know, setKnow] = createSignal(false);
+  // the warnings that a 409 confirm_needed named, for a folder whose read said none (or none yet)
+  const [named, setNamed] = createSignal<string[]>();
+  // a 409 confirm_needed was the answer for this folder: the box is needed, whatever it named
+  const [demanded, setDemanded] = createSignal(false);
   const [account, setAccount] = createSignal<{ path: string; owner: OwnerView }>();
   const folder = useBrowse(path, CHECK_MS);
   const id = createUniqueId();
@@ -76,6 +92,12 @@ export function ShareDialog(props: {
     onDone: props.onDone,
     onReload: props.onReload,
     onRefused: (err) => {
+      if (err instanceof ApiError && err.code === "confirm_needed") {
+        const w = err.details.warnings;
+        setNamed(Array.isArray(w) ? w.filter((x): x is string => typeof x === "string") : []);
+        setDemanded(true);
+        return true;
+      }
       const at = fieldOf(err, t);
       if (at) setRefused({ [at[0]]: at[1] });
       return at !== undefined;
@@ -86,6 +108,18 @@ export function ShareDialog(props: {
     },
   });
   const locked = () => change.busy() || change.over();
+  // another folder: its warnings are not the ones that were ticked
+  createEffect(
+    on(
+      path,
+      () => {
+        setKnow(false);
+        setNamed(undefined);
+        setDemanded(false);
+      },
+      { defer: true },
+    ),
+  );
 
   /** The edited share keeps its folder, and the view says that the disk of it is not mounted. */
   const unplugged = () => {
@@ -102,7 +136,7 @@ export function ShareDialog(props: {
   /** What the owner of the folder means for the share, once it is read (none for a disk that is not mounted). */
   const owner = () =>
     !cleanPath(path()) || folder.loading() || unplugged() ? undefined : ownerOf(folder.answer()?.owner);
-  /** The server refused to read the folder for a reason (a link on the way, on no data disk, no folder). */
+  /** The server refused to read the folder for a reason (a link on the way, the kernel's folders, no folder). */
   const refusedFolder = () => {
     const read = folder.error();
     return read instanceof ApiError && typeof read.details.reason === "string";
@@ -118,6 +152,26 @@ export function ShareDialog(props: {
       ? t("share.pathMissing")
       : errorText(read, t);
   };
+  /**
+   * The warnings of the folder that the dialog is at: its read, else what a 409 said, else (the folder of a share that smb.conf
+   * leaves out as unconfirmed) what the view says it never confirmed; none for a disk that is not there.
+   */
+  const warnings = () => {
+    if (!cleanPath(path()) || unplugged()) return [];
+    const read = folder.answer()?.warnings ?? [];
+    if (read.length > 0) return read;
+    const said = named() ?? [];
+    if (said.length > 0) return said;
+    if (edit && path() === edit.path) {
+      const now = props.view().config.shares.find((s) => s.name === edit.name) ?? edit;
+      if (now.skipped === "unconfirmed") return now.unconfirmed;
+    }
+    return [];
+  };
+  /** The checkbox is needed: the folder has warnings, or the server asked for a confirmation. */
+  const needsBox = () => warnings().length > 0 || (demanded() && cleanPath(path()) && !unplugged());
+  /** The alert starts with the text of confirm_needed: the server asked, and no warning of it is one the page knows. */
+  const unnamed = () => demanded() && !warnings().some((w) => KNOWN_WARNINGS.includes(w));
   const daysError = () =>
     refused().recycleDays ?? (validDays(days()) ? undefined : t("share.recycleDaysHint"));
   const canSend = () =>
@@ -125,11 +179,12 @@ export function ShareDialog(props: {
     known() &&
     name().trim() !== "" &&
     cleanPath(path()) &&
+    !folder.loading() &&
     (!recycle() || validDays(days())) &&
     !unplugged() &&
     !refusedFolder() &&
-    owner()?.state !== "root" &&
-    owner()?.state !== "missing";
+    owner()?.state !== "missing" &&
+    (!needsBox() || know());
 
   const send = () => {
     setRefused({});
@@ -148,7 +203,10 @@ export function ShareDialog(props: {
       recycle: recycle(),
       recycleDays: recycle() ? Number(days()) : 0,
     };
-    const request = edit ? { kind: "share-edit", name: edit.name, share } : { kind: "share-add", share };
+    const acknowledge = warnings().length > 0 ? { acknowledge: warnings() } : {};
+    const request = edit
+      ? { kind: "share-edit", name: edit.name, share, ...acknowledge }
+      : { kind: "share-add", share, ...acknowledge };
     void change.run(request, () =>
       tSafe(t, edit ? "done.share-edit" : "done.share-add", { name: share.name }),
     );
@@ -166,12 +224,13 @@ export function ShareDialog(props: {
   );
   const address = () =>
     `\\\\${serverName(props.view().config.settings.name, session.info()?.hostname)}\\${name().trim() || "…"}`;
-  const startBrowse = () =>
-    setBrowsing(
-      cleanPath(path()) && mountOf(props.view().mounts, path())
-        ? path()
-        : (props.view().mounts[0]?.point ?? ""),
-    );
+  const startBrowse = () => setBrowsing(cleanPath(path()) ? path() : "/");
+  /** The text of a warning, the code itself for one the page does not know. */
+  const warningText = (code: string) => {
+    const key = `share.warning.${code}`;
+    const text = t(key);
+    return text === key ? code : text;
+  };
 
   // the navigator and the service account stand beside the dialog, not in it: it is inert behind them (Modal)
   return (
@@ -252,6 +311,17 @@ export function ShareDialog(props: {
           disabled={locked()}
           onAccount={(o) => setAccount({ path: path(), owner: o })}
         />
+        <Show when={needsBox()}>
+          <div class="alert alert-error text-sm" role="alert">
+            <ul class="flex flex-col gap-1">
+              <Show when={unnamed()}>
+                <li>{t("errors.confirm_needed")}</li>
+              </Show>
+              <For each={warnings()}>{(code) => <li>{warningText(code)}</li>}</For>
+            </ul>
+          </div>
+          <Check label={t("share.know")} checked={know()} disabled={locked()} onChange={setKnow} />
+        </Show>
         <Field label={t("share.comment")}>
           {(fieldId) => (
             <input

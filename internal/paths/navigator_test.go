@@ -79,32 +79,35 @@ func TestListNoLinks(t *testing.T) {
 	}
 }
 
-// /var in Alpine's data mode is a data disk, but its folders of the system are not offered: List leaves them out, also
-// below them, and SystemDir says which they are. /var itself and its other folders are not.
-func TestListHidesSystemDirs(t *testing.T) {
+// List leaves out /proc, /sys and /dev at the top of the tree, and nothing else: the folders of the system are listed, and
+// SystemDir says which they are. /var itself and its other folders are not.
+func TestListHidesKernelDirs(t *testing.T) {
 	root := t.TempDir()
-	mkdirs(t, root, "var/lib/postgresql", "var/log", "var/cache/apk", "var/spool", "var/tmp", "var/run", "var/lock", "var/empty",
-		"var/data/lib", "var/libraries", "usr/share")
+	mkdirs(t, root, "proc/1", "sys/fs", "dev/shm", "etc/samba", "var/lib/postgresql", "var/log", "home/a", "mnt/proc", "usr/share")
 	r := openRoot(t, root)
-	got, _, err := paths.List(r, "/var", 1000)
-	if want := []paths.Entry{{"data", true}, {"libraries", false}}; err != nil || !reflect.DeepEqual(got, want) {
-		t.Errorf("List(/var) = %v, %v; want %v", got, err, want)
+	got, _, err := paths.List(r, "/", 1000)
+	if want := []paths.Entry{{"etc", true}, {"home", true}, {"mnt", true}, {"usr", true}, {"var", true}}; err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("List(/) = %v, %v; want %v", got, err, want)
 	}
-	if got, _, err := paths.List(r, "/", 1000); err != nil || !reflect.DeepEqual(got, []paths.Entry{{"var", true}}) {
-		t.Errorf("List(/) = %v, %v", got, err)
+	if got, _, err := paths.List(r, "/var", 1000); err != nil || !reflect.DeepEqual(got, []paths.Entry{{"lib", true}, {"log", false}}) {
+		t.Errorf("List(/var) = %v, %v", got, err)
+	}
+	if got, _, err := paths.List(r, "/mnt", 1000); err != nil || !reflect.DeepEqual(got, []paths.Entry{{"proc", false}}) {
+		t.Errorf("List(/mnt) = %v, %v", got, err)
 	}
 	for p, want := range map[string]bool{
 		"/var/lib": true, "/var/lib/postgresql": true, "/var/log": true, "/var/cache/apk": true, "/var/spool/mail": true,
 		"/var/tmp": true, "/var/run": true, "/var/lock": true, "/var/empty": true, "/usr": true, "/usr/share": true,
 		"/etc": true, "/proc/1": true, "/boot/efi": true, "/run/media": true, "/tmp/x": true,
+		"/bin": true, "/sbin": true, "/lib": true, "/lib64": true, "/root": true, "/root/x": true,
 		"/var": false, "/var/data": false, "/var/data/lib": false, "/var/libraries": false, "/": false, "/srv/usr": false,
-		"/mnt/disk/var/lib": false, "/usrdata": false,
+		"/mnt/disk/var/lib": false, "/usrdata": false, "/library": false,
 	} {
 		if got := paths.SystemDir(p); got != want {
 			t.Errorf("SystemDir(%s) = %v, want %v", p, got, want)
 		}
 	}
-	// a folder that holds one is no folder of a share either
+	// a folder that holds one is a risky folder of a share too
 	for p, want := range map[string]bool{"/var": true, "/": true, "/var/data": false, "/mnt/disk": false, "/va": false} {
 		if got := paths.HoldsSystemDir(p); got != want {
 			t.Errorf("HoldsSystemDir(%s) = %v, want %v", p, got, want)

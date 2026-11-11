@@ -28,7 +28,7 @@ export const cleanPath = (p: string) =>
         .slice(1)
         .every((s) => s !== "" && s !== "." && s !== "..")));
 
-/** The data disk that holds p: the one with the longest mount point that is p or above it. */
+/** The mount that holds p: the one with the longest mount point that is p or above it. */
 export const mountOf = (mounts: MountView[], p: string) =>
   mounts
     .filter((m) => p === m.point || p.startsWith(m.point === "/" ? "/" : `${m.point}/`))
@@ -78,7 +78,17 @@ export function useBrowse(dir: Accessor<string>, delayMs = 0) {
   return { answer, error, loading, refresh: () => load(current(), 0) };
 }
 
-/** The parent folder of a path below a mount point. */
+/** The places below which the mounts are the machine's own (containers, sessions): no quick jump for them. */
+const OWN_MOUNTS = ["/run", "/var/lib/docker", "/var/lib/containers"];
+
+/**
+ * Whether a mount is a quick jump: not one below /run, /var/lib/docker or /var/lib/containers, and no overlay. They are
+ * only left off the buttons; any folder there can still be typed or reached by the crumbs, and the server's rule is the same.
+ */
+const offered = (m: MountView) =>
+  m.type !== "overlay" && !OWN_MOUNTS.some((dir) => m.point.startsWith(`${dir}/`));
+
+/** The parent folder of a path below /. */
 const parentOf = (p: string) => p.slice(0, p.lastIndexOf("/")) || "/";
 
 /**
@@ -159,13 +169,14 @@ function NewFolder(props: { dir: string; inShare?: string; onMade: (path: string
 }
 
 /**
- * The navigator over the data disks: the disks to start from, the path of the folder it shows (value) with its parts to go
- * back to, and the folders in it, which it enters on a click (onChange is told the folder), with ".." to go up to the mount
- * point. It offers folders only, on the data disks only, and nothing behind a link: it lists what GET /browse lists, which
- * never names a link, and a folder that the server refuses (a link on the way) shows why, with nothing below it and only the
- * way back. With allowMkdir it offers "Neuer Ordner …" in the folder it shows. The disks are by their mount point, and the
- * folder is read again only when it is another one, so a new list of disks with the same disks (the page reads the view
- * every few seconds) keeps the buttons, the list, a typed name and the focus.
+ * The navigator over the whole tree: the mounts as quick jumps ("Systemplatte (/)" first, then every other mount point with
+ * its free space), the path of the folder it shows (value) with its parts to go back to, starting at /, and the folders in
+ * it, which it enters on a click (onChange is told the folder), with ".." to go up. It offers folders only, never /proc,
+ * /sys or /dev, and nothing behind a link: it lists what GET /browse lists, which never names a link, and a folder that the
+ * server refuses (a link on the way) shows why, with nothing below it and only the way back. With allowMkdir it offers
+ * "Neuer Ordner …" in the folder it shows. The mounts are by their mount point, and the folder is read again only when it is
+ * another one, so a new list of mounts with the same ones (the page reads the view every few seconds) keeps the buttons, the
+ * list, a typed name and the focus.
  */
 export function Navigator(props: {
   mounts: MountView[];
@@ -177,25 +188,20 @@ export function Navigator(props: {
   /** The mount point of the disk that holds the folder it shows. */
   const point = createMemo(() => mountOf(props.mounts, props.value)?.point);
   const disks = keyed(
-    () => props.mounts,
+    () => props.mounts.filter(offered).sort((a, b) => Number(b.point === "/") - Number(a.point === "/")),
     (m) => m.point,
   );
-  const browse = useBrowse(() => (point() ? props.value : ""));
-  /** The folders from the mount point down to the one it shows: the mount point, then each part below it. */
+  const browse = useBrowse(() => props.value);
+  /** The folders from / down to the one it shows: /, then each part below it. */
   const crumbs = () => {
-    const m = point();
-    if (m === undefined) return [];
-    const below = props.value.slice(m.length).split("/").filter(Boolean);
-    return [m, ...below.map((_, i) => `${m === "/" ? "" : m}/${below.slice(0, i + 1).join("/")}`)];
+    const parts = props.value.split("/").filter(Boolean);
+    return ["/", ...parts.map((_, i) => `/${parts.slice(0, i + 1).join("/")}`)];
   };
   const nameOf = (p: string, i: number) => (i === 0 ? p : p.slice(p.lastIndexOf("/") + 1));
   const below = (name: string) => `${props.value === "/" ? "" : props.value}/${name}`;
   return (
     <div class="flex flex-col gap-2">
-      <Show
-        when={props.mounts.length > 0}
-        fallback={<p class="text-sm opacity-70">{t("navigator.noDisks")}</p>}
-      >
+      <Show when={props.mounts.length > 0}>
         <span class="text-sm opacity-70">{t("navigator.disks")}</span>
         <div class="flex flex-wrap gap-1">
           <For each={disks.keys()}>
@@ -209,89 +215,87 @@ export function Navigator(props: {
                   aria-pressed={point() === p}
                   onClick={() => props.onChange(p)}
                 >
-                  {tSafe(t, "navigator.disk", {
-                    point: p,
-                    type: m().type,
-                    free: formatBytes(m().free, locale()),
-                  })}
+                  {p === "/"
+                    ? t(m().ram ? "navigator.systemRam" : "navigator.system")
+                    : tSafe(t, "navigator.disk", {
+                        point: p,
+                        type: m().type,
+                        free: formatBytes(m().free, locale()),
+                      })}
                 </button>
               );
             }}
           </For>
         </div>
-        <Show when={point() !== undefined} fallback={<p class="text-sm">{t("navigator.chooseDisk")}</p>}>
-          <nav aria-label={t("navigator.path")} class="flex flex-wrap items-center gap-1 text-sm">
-            <For each={crumbs()}>
-              {(p, i) => (
-                <>
-                  <Show when={i() > 0}>
-                    <span class="opacity-50" aria-hidden="true">
-                      ›
-                    </span>
-                  </Show>
-                  <Show
-                    when={i() < crumbs().length - 1}
-                    fallback={<span class="font-semibold">{nameOf(p, i())}</span>}
-                  >
-                    <button type="button" class="link" onClick={() => props.onChange(p)}>
-                      {nameOf(p, i())}
-                    </button>
-                  </Show>
-                </>
-              )}
-            </For>
-          </nav>
-          <ul class="menu menu-sm w-full rounded-box bg-base-200" aria-label={t("navigator.folders")}>
-            <Show when={props.value !== point()}>
-              <li>
-                <button
-                  type="button"
-                  aria-label={t("navigator.up")}
-                  onClick={() => props.onChange(parentOf(props.value))}
-                >
-                  <IconFolder size={16} aria-hidden="true" />
-                  ..
-                </button>
-              </li>
-            </Show>
-            <For each={browse.answer()?.entries ?? []}>
-              {(e) => (
-                <li>
-                  <button type="button" onClick={() => props.onChange(below(e.name))}>
-                    <IconFolder size={16} aria-hidden="true" />
-                    {e.name}
-                  </button>
-                </li>
-              )}
-            </For>
-          </ul>
-          <Show when={browse.loading()}>
-            <p class="text-xs opacity-70" role="status">
-              {t("navigator.reading")}
-            </p>
-          </Show>
-          <Show when={browse.error()}>
-            {(err) => <p class="text-xs text-error">{errorText(err(), t)}</p>}
-          </Show>
-          <Show when={browse.answer()?.entries.length === 0}>
-            <p class="text-xs opacity-70">{t("navigator.empty")}</p>
-          </Show>
-          <Show when={browse.answer()?.truncated}>
-            <p class="text-xs opacity-70">{t("navigator.truncated")}</p>
-          </Show>
-          <Show when={props.allowMkdir && browse.answer()}>
-            <NewFolder dir={props.value} inShare={browse.answer()?.inShare} onMade={props.onChange} />
-          </Show>
-        </Show>
-        <p class="text-xs opacity-70">{t("navigator.note")}</p>
       </Show>
+      <nav aria-label={t("navigator.path")} class="flex flex-wrap items-center gap-1 text-sm">
+        <For each={crumbs()}>
+          {(p, i) => (
+            <>
+              <Show when={i() > 1}>
+                <span class="opacity-50" aria-hidden="true">
+                  ›
+                </span>
+              </Show>
+              <Show
+                when={i() < crumbs().length - 1}
+                fallback={<span class="font-semibold">{nameOf(p, i())}</span>}
+              >
+                <button type="button" class="link" onClick={() => props.onChange(p)}>
+                  {nameOf(p, i())}
+                </button>
+              </Show>
+            </>
+          )}
+        </For>
+      </nav>
+      <ul class="menu menu-sm w-full rounded-box bg-base-200" aria-label={t("navigator.folders")}>
+        <Show when={props.value !== "/"}>
+          <li>
+            <button
+              type="button"
+              aria-label={t("navigator.up")}
+              onClick={() => props.onChange(parentOf(props.value))}
+            >
+              <IconFolder size={16} aria-hidden="true" />
+              ..
+            </button>
+          </li>
+        </Show>
+        <For each={browse.answer()?.entries ?? []}>
+          {(e) => (
+            <li>
+              <button type="button" onClick={() => props.onChange(below(e.name))}>
+                <IconFolder size={16} aria-hidden="true" />
+                {e.name}
+              </button>
+            </li>
+          )}
+        </For>
+      </ul>
+      <Show when={browse.loading()}>
+        <p class="text-xs opacity-70" role="status">
+          {t("navigator.reading")}
+        </p>
+      </Show>
+      <Show when={browse.error()}>{(err) => <p class="text-xs text-error">{errorText(err(), t)}</p>}</Show>
+      <Show when={browse.answer()?.entries.length === 0}>
+        <p class="text-xs opacity-70">{t("navigator.empty")}</p>
+      </Show>
+      <Show when={browse.answer()?.truncated}>
+        <p class="text-xs opacity-70">{t("navigator.truncated")}</p>
+      </Show>
+      <Show when={props.allowMkdir && browse.answer()}>
+        <NewFolder dir={props.value} inShare={browse.answer()?.inShare} onMade={props.onChange} />
+      </Show>
+      <p class="text-xs opacity-70">{t("navigator.note")}</p>
     </div>
   );
 }
 
 /**
- * "Ordner wählen": the navigator in a dialog of its own, at start (a folder on a data disk, or "" to choose the disk
- * first), with the button that chooses the folder it shows (onChoose), once that is one on a data disk.
+ * "Ordner wählen": the navigator in a dialog of its own, at start (a folder, or "/"), with the button that chooses the
+ * folder it shows (onChoose).
  */
 export function NavigatorDialog(props: {
   mounts: MountView[];
@@ -301,7 +305,7 @@ export function NavigatorDialog(props: {
 }) {
   const { t } = useI18n();
   const [dir, setDir] = createSignal(props.start);
-  const choosable = () => cleanPath(dir()) && mountOf(props.mounts, dir()) !== undefined;
+  const choosable = () => cleanPath(dir());
   return (
     <Modal
       title={t("navigator.title")}

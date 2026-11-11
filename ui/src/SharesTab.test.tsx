@@ -108,16 +108,31 @@ describe("SharesTab", () => {
     const r = renderTab({
       list: [
         share({ name: "a", skipped: "no_users", rights: {} }),
-        share({ name: "b", skipped: "root_owned" }),
+        share({ name: "b", skipped: "bad_name" }),
         share({ name: "c", skipped: "no_owner", available: false, reason: "no_owner", owner: undefined }),
         share({ name: "d", skipped: "something_new" }),
       ],
     });
     expect(r.cells("a")[4]?.textContent).toBe("nicht bereitgestelltniemand hat Zugriff");
-    expect(r.cells("b")[4]?.textContent).toBe("nicht bereitgestelltgehört root");
+    expect(r.cells("b")[4]?.textContent).toBe("nicht bereitgestelltder Name geht für Samba nicht");
     expect(r.cells("c")[4]?.textContent).toBe("nicht bereitgestelltBesitzer fehlt");
     expect(r.cells("d")[4]?.textContent).toBe("nicht bereitgestelltsomething_new");
     for (const name of ["a", "b", "c", "d"]) expect(r.cells(name)[4]?.textContent).not.toContain("verfügbar");
+  });
+
+  it("says that a share needs a confirmation, and that a kernel interface below its folder locks it", () => {
+    const r = renderTab({
+      list: [
+        share({ name: "a", skipped: "unconfirmed", unconfirmed: ["root_owned"], warnings: ["root_owned"] }),
+        share({ name: "b", available: false, reason: "kernel", owner: undefined }),
+      ],
+    });
+    expect(r.cells("a")[4]?.textContent).toBe(
+      "nicht bereitgestelltBestätigung nötig: Der Ordner ist inzwischen ein Systemordner oder gehört root. Bestätige die Warnungen im Bearbeiten-Dialog, dann ist die Freigabe wieder erreichbar.",
+    );
+    expect(r.cells("b")[4]?.textContent).toBe(
+      "Unter dem Ordner ist eine Kernel-Schnittstelle eingehängt (/proc, /sys oder /dev), deshalb ist die Freigabe gesperrt.",
+    );
   });
 
   it("words a recycle bin of one file, and one that was not counted to its end, in English too", () => {

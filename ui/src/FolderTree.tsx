@@ -88,8 +88,13 @@ interface Tree {
   folders: ReturnType<typeof useFolders>;
   open: Accessor<ReadonlySet<string>>;
   toggle: (path: string) => void;
-  /** Folder rights can be set: the disk keeps them, as far as the page knows. */
+  /** Folder rights can be set: the disk keeps them, as far as the page knows, and the share is no system or root one. */
   editable: Accessor<boolean>;
+  /**
+   * A share with the warning system or root_owned: no rights can be set, but those that exist can be removed, and a mixed
+   * folder can be applied again (the server refuses folder_rights_unsafe for anything else).
+   */
+  limited: Accessor<boolean>;
   busy: Accessor<boolean>;
   onFolder: (path: string) => void;
 }
@@ -108,14 +113,16 @@ const rightsOf = (s: ShareView) => JSON.stringify([s.rights, s.folders, s.perUse
  * "gemischter Stand", with "erneut anwenden", which opens its rights; so is the share's own folder (onFolder with "").
  *
  * On a disk without extended attributes (the view's mount), or once the server has said that the disk cannot keep folder rights
- * (aclReason, from a refusal), the tree says why and is there to look at only. The folders are by name and the tree is read again
+ * (aclReason, from a refusal), the tree says why and is there to look at only. So it is for a share whose folder has the
+ * warning system or root_owned (the view's warnings), which says so with folder_rights_unsafe; there the folders with rights
+ * of their own still open (to remove them), and "erneut anwenden" stays. The folders are by name and the tree is read again
  * only when the share's rights change or a folder-rights job of the share ended (stale), so a new view every few seconds keeps
  * its lines, the open folders and the focus. The end of a job comes before the view that the page reads after it: that view
  * brings what the reload for the end has read already, so it reads nothing again, whatever it changes.
  */
 export function FolderTree(props: {
   share: ShareView;
-  /** The data disk of the share, as the view has it. */
+  /** The disk of the share, as the view has it. */
   mount: MountView | undefined;
   /** Why the disk cannot keep folder rights, as the server said it (a no_acl refusal). */
   aclReason: string | undefined;
@@ -165,6 +172,8 @@ export function FolderTree(props: {
     const why = t(key);
     return `${tSafe(t, "errors.noAcl", { reason: why === key ? r : why })} ${t("folders.viewOnly")}`;
   };
+  /** The share's folder is a system folder or belongs to root: folder rights are refused (folder_rights_unsafe). */
+  const unsafe = () => props.share.warnings.some((w) => w === "system" || w === "root_owned");
   const tree: Tree = {
     folders,
     open,
@@ -177,7 +186,8 @@ export function FolderTree(props: {
       }
       setOpen(next);
     },
-    editable: () => reason() === undefined,
+    editable: () => reason() === undefined && !unsafe(),
+    limited: () => reason() === undefined && unsafe(),
     busy: () => props.busy,
     onFolder: (path) => props.onFolder(path),
   };
@@ -189,10 +199,13 @@ export function FolderTree(props: {
           : props.share.path}
       </p>
       <Show when={reason()}>{(r) => <p class="text-sm text-warning">{reasonText(r())}</p>}</Show>
+      <Show when={tree.limited()}>
+        <p class="text-sm text-warning">{t("errors.folder_rights_unsafe")}</p>
+      </Show>
       <Show when={folders.node("").answer()?.disk?.mixed}>
         <div class="flex flex-wrap items-center gap-2">
           <p class="text-sm text-warning">{t("folders.rootMixed")}</p>
-          <Show when={tree.editable()}>
+          <Show when={tree.editable() || tree.limited()}>
             <button
               type="button"
               class="btn btn-ghost btn-xs"
@@ -294,7 +307,7 @@ function FolderLine(props: { tree: Tree; dir: string; entry: Accessor<FolderEntr
           </button>
         </Show>
         <Show
-          when={props.tree.editable()}
+          when={props.tree.editable() || (props.tree.limited() && (own() || mixed()))}
           fallback={
             <span>
               {icon()} {name}
@@ -323,7 +336,7 @@ function FolderLine(props: { tree: Tree; dir: string; entry: Accessor<FolderEntr
         <span class="text-xs opacity-70">· {marker()}</span>
         <Show when={mixed()}>
           <span class="badge badge-sm badge-warning badge-soft">{t("folders.mixed")}</span>
-          <Show when={props.tree.editable()}>
+          <Show when={props.tree.editable() || props.tree.limited()}>
             <button
               type="button"
               class="btn btn-ghost btn-xs"
