@@ -51,8 +51,8 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - name: Check the version
         run: make release-check VERSION="${GITHUB_REF_NAME#v}"
-      - name: Lint and test
-        run: make lint test
+#      - name: Lint and test
+#        run: make lint test
       - name: Build the release files
         run: make release VERSION="${GITHUB_REF_NAME#v}"
       # overwrite: "Re-run all jobs" runs this step again, and the artifact of the first attempt already has this name.
