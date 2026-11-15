@@ -122,6 +122,12 @@ func (c *capture) captureServices() {
 	block("avahi-browse-samba-first", c.sh(browse))
 	block("samba-restart", c.result(rc, "samba", "restart")+c.sh("sleep 2; "+status+browse))
 	block("wsdd-after-samba-restart", c.result(rc, "wsdd", "start")+c.sh(status))
+	// OpenRC starts the services that the stop of a restart took along (wsdd needs samba) in the background: right after
+	// rc-service samba restart returns, wsdd may still be starting.
+	openrc := `echo "--- /run/openrc/starting"; ls -l /run/openrc/starting 2>&1; echo "--- /run/openrc/stopping"; ` +
+		`ls -l /run/openrc/stopping 2>&1; echo "--- /run/openrc/started"; ls -l /run/openrc/started 2>&1; true`
+	block("samba-restart-openrc-state", c.result(rc, "samba", "restart")+c.sh(openrc)+c.sh("sleep 3; echo '=== 3 s later'; "+openrc+
+		"; rc-service wsdd status 2>&1; true"))
 	// nmbd runs although NetBIOS is off; the daemon list of /etc/conf.d/samba decides.
 	writeFile(c.t, "/etc/conf.d/samba", "daemon_list=\"smbd\"\n")
 	block("daemon-list-smbd", c.result(rc, "samba", "restart")+c.sh("sleep 1; "+status+"netstat -tulnp 2>/dev/null | grep -E 'smbd|nmbd'; true"))

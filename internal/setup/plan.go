@@ -17,7 +17,7 @@ import (
 
 // The labels of the steps: the UI shows steps.<label> while a step runs.
 const (
-	labelService   = "service"   // rc-service start, stop, restart
+	labelService   = "service"   // rc-service start, stop, restart, and the wait for the services to settle
 	labelRunlevel  = "runlevel"  // rc-update add, rc-update del
 	labelBackup    = "backup"    // --samba-tool backup: a database of the Samba that was there
 	labelGroup     = "group"     // --samba-tool marker-group
@@ -30,6 +30,7 @@ const (
 // The time limits that differ from the 30 s of the other commands.
 const (
 	serviceTimeout = 2 * time.Minute
+	settleTimeout  = 2 * time.Minute // settle gives up after 60 s by itself
 	lbuTimeout     = 2 * time.Minute
 )
 
@@ -52,14 +53,15 @@ type Host struct {
 type planner struct {
 	h       Host
 	steps   []jobs.Step
-	started map[string]bool // the services OpenRC has started, as the steps so far leave them
+	started map[string]bool // the services OpenRC has started or is starting, as the steps so far leave them
+	settled bool            // the plan has the step that waits for the services to settle
 	persist bool            // a step changes /etc (a file, the runlevel), which lbu saves in diskless and data mode
 }
 
 func newPlanner(h Host) *planner {
 	p := &planner{h: h, steps: []jobs.Step{}, started: map[string]bool{}}
 	for _, svc := range services(true) {
-		p.started[svc] = ServiceStarted(h.FS, svc)
+		p.started[svc] = ServiceStarted(h.FS, svc) || ServiceStarting(h.FS, svc)
 	}
 	return p
 }
@@ -78,11 +80,16 @@ func (p *planner) exec(label string, ignore bool, timeout time.Duration, path st
 }
 
 // service has OpenRC do the command (start, stop, restart) with the service. A stop of samba stops wsdd too, which needs
-// it.
+// it. The first rc-service step of a plan is preceded by the wait for the services to settle (--samba-tool settle): a
+// service that OpenRC is still starting, from a restart of samba a moment ago, refuses a command.
 func (p *planner) service(svc, command string, ignore bool) error {
 	rc, err := tool(p.h.Tools.RcService, "rc-service")
 	if err != nil {
 		return err
+	}
+	if !p.settled {
+		p.exec(labelService, false, settleTimeout, p.h.Self, "--samba-tool", "settle")
+		p.settled = true
 	}
 	p.exec(labelService, ignore, serviceTimeout, rc, svc, command)
 	p.started[svc] = command != "stop"
@@ -164,8 +171,10 @@ func (p *planner) discoveryFiles(d []string) (bool, error) {
 //
 // avahi-daemon restarts when a file of the discovery changed and it runs. smbd announces itself through avahi only when
 // avahi runs as smbd starts (the capture), so samba restarts when avahi-daemon was started or restarted while samba ran,
-// and when restart says so; its restart restarts wsdd. wsdd starts after samba, and only while samba runs (it would start
-// samba).
+// and when restart says so. A restart of samba would have OpenRC start wsdd again in the background, where an rc-service
+// command of the job could meet it "already starting", so wsdd stops before the restart and starts after it, as steps of
+// the job. wsdd starts after samba, and only while samba runs (it would start samba). A service that OpenRC is starting
+// counts as started, and the plan begins with the wait for it (service).
 func (p *planner) services(s samba.Settings, runlevel, startSamba, restart bool) error {
 	d := LocalInterfaces(s.Interfaces, p.h.Ifaces)
 	want := s.Discovery && len(d) > 0
@@ -231,6 +240,11 @@ func (p *planner) services(s samba.Settings, runlevel, startSamba, restart bool)
 		}
 	}
 	if running && (restart || touched) {
+		if p.started[svcWsdd] {
+			if err := p.service(svcWsdd, "stop", false); err != nil {
+				return err
+			}
+		}
 		if err := p.service(svcSamba, "restart", false); err != nil {
 			return err
 		}

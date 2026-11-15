@@ -47,6 +47,8 @@ func same(t *testing.T, what string, got, want []string) {
 const (
 	writeWsdd  = "write /etc/conf.d/wsdd"
 	writeAvahi = "write /etc/avahi/avahi-daemon.conf"
+	// settle is the wait that precedes the first rc-service step of a plan.
+	settle = "exec /proc/self/exe --samba-tool settle"
 )
 
 // A host with the packages and nothing running: the group, the check of the new config, smbd alone, the config, wsdd
@@ -70,6 +72,7 @@ func TestPlanFresh(t *testing.T) {
 		"exec /sbin/rc-update add samba default",
 		"exec /sbin/rc-update add wsdd default",
 		"exec /sbin/rc-update add crond default",
+		settle,
 		"exec /sbin/rc-service dbus start",
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba start",
@@ -109,7 +112,9 @@ func TestPlanFresh(t *testing.T) {
 		switch c := s.Cmd; {
 		case c.Path == tools.RcService && (c.Timeout != 2*time.Minute || s.Ignore != (c.Args[0] == "crond")):
 			t.Errorf("%s: timeout %v, ignore %v", jobs.Describe(s), c.Timeout, s.Ignore)
-		case c.Path == self && (c.Timeout != 0 || s.Cancel):
+		case jobs.Describe(s) == settle && (c.Timeout != 2*time.Minute || s.Ignore || s.Cancel):
+			t.Errorf("%s: timeout %v, ignore %v, cancel %v", jobs.Describe(s), c.Timeout, s.Ignore, s.Cancel)
+		case c.Path == self && jobs.Describe(s) != settle && (c.Timeout != 0 || s.Cancel):
 			t.Errorf("%s: timeout %v, cancel %v", jobs.Describe(s), c.Timeout, s.Cancel)
 		}
 	}
@@ -132,6 +137,7 @@ func TestPlanForeign(t *testing.T) {
 	same(t, "steps", describe(steps), []string{
 		"exec /proc/self/exe --samba-tool marker-group",
 		"exec /config check",
+		settle,
 		"exec /sbin/rc-service samba stop",
 		"exec /proc/self/exe --samba-tool backup --file /var/lib/samba/private/passdb.tdb --remove",
 		"exec /proc/self/exe --samba-tool backup --file /var/lib/samba/private/secrets.tdb",
@@ -171,6 +177,7 @@ func TestPlanRepair(t *testing.T) {
 	same(t, "repair", describe(steps), []string{
 		"exec /sbin/rc-update add crond default",
 		"write /etc/periodic/daily/edelweiss-samba-recycle",
+		settle,
 		"exec /sbin/rc-service crond start",
 	})
 
@@ -184,6 +191,7 @@ func TestPlanRepair(t *testing.T) {
 	}
 	same(t, "daemon_list", describe(steps), []string{
 		"exec /config check",
+		settle,
 		"exec /sbin/rc-service samba stop",
 		"write /etc/conf.d/samba",
 		"exec /config write reload=false",
@@ -204,6 +212,7 @@ func TestPlanRepair(t *testing.T) {
 		"exec /config check",
 		"exec /config write reload=true",
 		"exec /sbin/rc-update add crond default",
+		settle,
 		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service avahi-daemon stop",
 		"exec /sbin/rc-update del wsdd default",
@@ -214,7 +223,7 @@ func TestPlanRepair(t *testing.T) {
 }
 
 // A file of the discovery that drifted is written again; avahi-daemon restarts, and samba after it (smbd announces itself
-// only when avahi runs as it starts), which restarts wsdd as well. An avahi-daemon that is stopped under a running smbd
+// only when avahi runs as it starts), wsdd stops before it and starts after it. An avahi-daemon that is stopped under a running smbd
 // starts, and samba restarts after it.
 func TestPlanRepairDiscovery(t *testing.T) {
 	root, h := newHost(t)
@@ -227,8 +236,11 @@ func TestPlanRepairDiscovery(t *testing.T) {
 	steps, _ = setup.Plan(h, true, on, config)
 	same(t, "wsdd drifted", describe(steps), []string{
 		writeWsdd,
+		settle,
 		"exec /sbin/rc-service avahi-daemon restart",
+		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
 	})
 	if got := string(step(t, steps, writeWsdd).Data); got != `WSDD_OPTS="-4 -i eth0"`+"\n" {
 		t.Errorf("conf.d/wsdd %q", got)
@@ -238,8 +250,11 @@ func TestPlanRepairDiscovery(t *testing.T) {
 	steps, _ = setup.Plan(h, true, on, config)
 	same(t, "avahi drifted", describe(steps), []string{
 		writeAvahi,
+		settle,
 		"exec /sbin/rc-service avahi-daemon restart",
+		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
 	})
 	wanted(t, root, "eth0")
 	if err := removeLink(root, "run/openrc/started/avahi-daemon"); err != nil {
@@ -247,8 +262,11 @@ func TestPlanRepairDiscovery(t *testing.T) {
 	}
 	steps, _ = setup.Plan(h, true, on, config)
 	same(t, "avahi stopped under smbd", describe(steps), []string{
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
+		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
 	})
 }
 
@@ -262,6 +280,7 @@ func TestPlanNoLocalInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 	same(t, "no local interface", describe(steps), []string{
+		settle,
 		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service avahi-daemon stop",
 		"exec /sbin/rc-update del wsdd default",
@@ -281,19 +300,19 @@ func TestPlanKeepsAnAvahiOfBefore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		same(t, "setup", describe(steps), []string{"exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default"})
+		same(t, "setup", describe(steps), []string{settle, "exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default"})
 		steps, err = setup.Discovery(h, s, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		same(t, "settings", describe(steps), []string{"exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default"})
+		same(t, "settings", describe(steps), []string{settle, "exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default"})
 	}
 	steps, err := setup.Discovery(h, samba.Settings{Discovery: true, Interfaces: []string{"eth0", "wg0"}}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	same(t, "on, another interface", describe(steps), []string{writeWsdd, writeAvahi, "exec /sbin/rc-service avahi-daemon restart",
-		"exec /sbin/rc-service samba restart"})
+	same(t, "on, another interface", describe(steps), []string{writeWsdd, writeAvahi, settle, "exec /sbin/rc-service avahi-daemon restart",
+		"exec /sbin/rc-service wsdd stop", "exec /sbin/rc-service samba restart", "exec /sbin/rc-service wsdd start"})
 }
 
 // diskless keeps Samba's databases through lbu, and diskless and data save /etc at the end.
@@ -359,6 +378,7 @@ func TestStart(t *testing.T) {
 		"write /etc/conf.d/samba",
 		writeWsdd,
 		writeAvahi,
+		settle,
 		"exec /sbin/rc-service dbus start",
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba start",
@@ -373,6 +393,7 @@ func TestStart(t *testing.T) {
 	same(t, "discovery on, avahi stopped under smbd", describe(steps), []string{
 		writeWsdd,
 		writeAvahi,
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba restart",
 		"exec /sbin/rc-service wsdd start",
@@ -387,6 +408,7 @@ func TestStart(t *testing.T) {
 	steps, _ = setup.Start(h, samba.Settings{})
 	same(t, "diskless, the list written", describe(steps), []string{
 		"write /etc/conf.d/samba",
+		settle,
 		"exec /sbin/rc-service samba start",
 		"exec /usr/sbin/lbu commit",
 	})
@@ -394,7 +416,7 @@ func TestStart(t *testing.T) {
 
 // The settings: with the discovery on, the files of wsdd and avahi-daemon name the local interfaces, the services go into
 // the runlevel and start, avahi-daemon before samba restarts (smbd announces itself through avahi only when avahi runs as
-// it starts) and wsdd after it; a change of the files restarts avahi-daemon and samba (which restarts wsdd); with the
+// it starts) and wsdd after it; a change of the files restarts avahi-daemon and samba (wsdd stops before it and starts after it); with the
 // discovery off, or no local interface, they stop and leave the runlevel.
 func TestDiscovery(t *testing.T) {
 	root, h := newHost(t)
@@ -409,6 +431,7 @@ func TestDiscovery(t *testing.T) {
 		writeAvahi,
 		"exec /sbin/rc-update add avahi-daemon default",
 		"exec /sbin/rc-update add wsdd default",
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba restart",
 		"exec /sbin/rc-service wsdd start",
@@ -422,8 +445,11 @@ func TestDiscovery(t *testing.T) {
 	same(t, "another interface", describe(steps), []string{
 		writeWsdd,
 		writeAvahi,
+		settle,
 		"exec /sbin/rc-service avahi-daemon restart",
+		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
 	})
 	if got := string(step(t, steps, writeWsdd).Data); got != `WSDD_OPTS="-4 -i eth0 -i wg0"`+"\n" {
 		t.Errorf("conf.d/wsdd %q", got)
@@ -433,6 +459,7 @@ func TestDiscovery(t *testing.T) {
 	}
 	steps, _ = setup.Discovery(h, samba.Settings{Interfaces: []string{"eth0"}}, true)
 	same(t, "off", describe(steps), []string{
+		settle,
 		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service avahi-daemon stop",
 		"exec /sbin/rc-update del wsdd default",
@@ -441,6 +468,7 @@ func TestDiscovery(t *testing.T) {
 	})
 	steps, _ = setup.Discovery(h, samba.Settings{Discovery: true, Interfaces: []string{"eth1"}}, false)
 	same(t, "on, no local interface", describe(steps), []string{
+		settle,
 		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service avahi-daemon stop",
 		"exec /sbin/rc-update del wsdd default",
@@ -529,5 +557,102 @@ func TestSetINI(t *testing.T) {
 		if out, changed := setup.SetINI(in, "server", want); changed || out != in {
 			t.Errorf("%q: %q %v", in, out, changed)
 		}
+	}
+}
+
+// A restart of samba that finds wsdd started plans wsdd stop, samba restart, wsdd start, in this order, after the wait for
+// the services to settle: OpenRC would start wsdd again in the background, and a rc-service wsdd start of the job could
+// meet it "already starting" (internal/samba/testdata, samba-restart-openrc-state). A wsdd that OpenRC is only
+// starting counts as started. With the discovery off there is no wsdd start.
+func TestPlanSambaRestartWithWsdd(t *testing.T) {
+	root, h := newHost(t)
+	ready(t, root)
+	want := []string{
+		settle,
+		"exec /sbin/rc-service wsdd stop",
+		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
+	}
+	steps, err := setup.Discovery(h, on, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	same(t, "wsdd started", describe(steps), want)
+
+	if err := removeLink(root, "run/openrc/started/wsdd"); err != nil {
+		t.Fatal(err)
+	}
+	link(t, root, "run/openrc/starting", "wsdd")
+	steps, _ = setup.Discovery(h, on, true)
+	same(t, "wsdd starting", describe(steps), want)
+	steps, _ = setup.Start(h, on)
+	same(t, "wsdd starting, nothing to start", describe(steps), []string{})
+
+	if err := removeLink(root, "run/openrc/starting/wsdd"); err != nil {
+		t.Fatal(err)
+	}
+	steps, _ = setup.Discovery(h, on, true)
+	same(t, "wsdd stopped", describe(steps), []string{settle, "exec /sbin/rc-service samba restart", "exec /sbin/rc-service wsdd start"})
+
+	start(t, root, "wsdd")
+	steps, _ = setup.Discovery(h, samba.Settings{Interfaces: []string{"eth0"}}, true)
+	got := describe(steps)
+	same(t, "discovery off", got, []string{
+		settle,
+		"exec /sbin/rc-service wsdd stop",
+		"exec /sbin/rc-service avahi-daemon stop",
+		"exec /sbin/rc-update del wsdd default",
+		"exec /sbin/rc-update del avahi-daemon default",
+		"exec /sbin/rc-service samba restart",
+	})
+	if slices.Contains(got, "exec /sbin/rc-service wsdd start") {
+		t.Errorf("wsdd starts with the discovery off: %v", got)
+	}
+}
+
+// The wait for the services to settle is one step, before the first rc-service step; a plan without one has none.
+func TestPlanSettleOnlyWithServiceSteps(t *testing.T) {
+	root, h := newHost(t)
+	ready(t, root)
+	if err := removeLink(root, "etc/runlevels/default/crond"); err != nil {
+		t.Fatal(err)
+	}
+	steps, err := setup.Plan(h, true, on, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	same(t, "only the runlevel", describe(steps), []string{"exec /sbin/rc-update add crond default"})
+
+	if err := removeLink(root, "run/openrc/started/avahi-daemon"); err != nil {
+		t.Fatal(err)
+	}
+	steps, _ = setup.Plan(h, true, on, config)
+	got := describe(steps)
+	if n := strings.Count(strings.Join(got, "\n"), settle); n != 1 {
+		t.Errorf("%d settle steps in %v", n, got)
+	}
+	if i := slices.Index(got, settle); i < 0 || !strings.HasPrefix(got[i+1], "exec /sbin/rc-service ") {
+		t.Errorf("settle is not right before the first rc-service step: %v", got)
+	}
+	for _, s := range got[:slices.Index(got, settle)] {
+		if strings.HasPrefix(s, "exec /sbin/rc-service ") {
+			t.Errorf("a rc-service step before settle: %v", got)
+		}
+	}
+}
+
+// Transitioning names the services that OpenRC is starting or stopping.
+func TestTransitioning(t *testing.T) {
+	root, h := newHost(t)
+	if got := setup.Transitioning(h.FS); len(got) != 0 {
+		t.Errorf("nothing runs: %v", got)
+	}
+	start(t, root, "samba")
+	link(t, root, "run/openrc/starting", "wsdd")
+	link(t, root, "run/openrc/stopping", "dbus")
+	link(t, root, "run/openrc/starting", "crond")
+	same(t, "in transition", setup.Transitioning(h.FS), []string{"dbus", "wsdd"})
+	if !setup.ServiceStarting(h.FS, "wsdd") || setup.ServiceStarting(h.FS, "samba") {
+		t.Error("ServiceStarting")
 	}
 }

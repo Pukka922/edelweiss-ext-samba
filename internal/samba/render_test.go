@@ -150,7 +150,8 @@ func TestRenderGlobal(t *testing.T) {
 	g := section(render(t, baseConfig(), baseEnv())[confPath], "global")
 	for _, l := range []string{
 		"server role = standalone server", "workgroup = HOME", "netbios name = NAS", "disable netbios = yes",
-		"server min protocol = SMB3", "map to guest = never", "map archive = no", "load printers = no", "access based share enum = yes",
+		"server min protocol = SMB3", "map to guest = never", "map archive = no", "acl allow execute always = yes",
+		"load printers = no", "access based share enum = yes",
 		"bind interfaces only = yes", "interfaces = eth0 lo wg0", "fruit:aapl = yes", "fruit:metadata = stream",
 		"fruit:model = MacSamba", "fruit:nfs_aces = no", "fruit:posix_rename = yes", "fruit:veto_appledouble = no",
 		"fruit:delete_empty_adfiles = yes", "fruit:wipe_intentionally_left_blank_rfork = yes",

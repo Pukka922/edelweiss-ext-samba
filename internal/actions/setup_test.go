@@ -37,6 +37,7 @@ func TestSetupForeignBackups(t *testing.T) {
 	same(t, "setup", describe(spec.Steps), []string{
 		tool("marker-group"),
 		writeStaged, testparm,
+		settle,
 		"exec /sbin/rc-service samba stop",
 		tool("backup", "--file", "/var/lib/samba/private/passdb.tdb", "--remove"),
 		tool("backup", "--file", "/var/lib/samba/private/secrets.tdb"),
@@ -115,6 +116,7 @@ func TestSetupDiskless(t *testing.T) {
 		"write /etc/conf.d/samba",
 		writeConfig, writeConf,
 		writeWsdd, writeAvahi,
+		settle,
 		"exec /sbin/rc-service dbus start",
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba start",
@@ -158,6 +160,7 @@ func TestStartPlan(t *testing.T) {
 	f.stop("samba", "wsdd", "avahi-daemon")
 	spec := f.plan(actions.Request{Kind: "start"})
 	same(t, "start", describe(spec.Steps), []string{
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba start",
 		"exec /sbin/rc-service wsdd start",
@@ -170,13 +173,17 @@ func TestStartPlan(t *testing.T) {
 	same(t, "discovery off", describe(spec.Steps), []string{
 		"exec /sbin/rc-update del wsdd default",
 		"exec /sbin/rc-update del avahi-daemon default",
+		settle,
 		"exec /sbin/rc-service samba start",
 	})
 	f.env.Config.Settings.Discovery = true
 	f.services("samba", "wsdd")
 	spec = f.plan(actions.Request{Kind: "start"})
 	same(t, "avahi stopped under smbd", describe(spec.Steps), []string{
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
+		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service samba restart",
+		"exec /sbin/rc-service wsdd start",
 	})
 }

@@ -146,6 +146,10 @@ the same results. Without such a method it prints "unknown" and fails. Item 6 be
      only when avahi runs as smbd starts: started before avahi it announces nothing, until a restart of samba
      (`avahi-browse-samba-first`, `samba-restart`). So avahi-daemon comes before samba.
    - `rc-service samba restart` stops wsdd and starts it again.
+     OpenRC starts it again in the background: when `rc-service samba restart` has returned, wsdd is still in
+     `/run/openrc/starting` (a link there, none for it in `started`; `/run/openrc/stopping` is empty), and it is in
+     `started` within 3 s (`samba-restart-openrc-state`). A `rc-service wsdd start` in that window fails with
+     `* WARNING: wsdd is already starting`, and the job that ran it ends failed.
    - `/etc/conf.d/samba` has `daemon_list="smbd nmbd"`, and nmbd runs and binds UDP 137 and 138 although `disable
      netbios = yes`. With `daemon_list="smbd"` only smbd starts, but the stop of a restart uses the new list too and
      leaves the old nmbd running (`daemon-list-smbd`); the list has to change while samba is stopped.
@@ -445,7 +449,7 @@ lines:
 | `packages.txt` | TestCapture | `versions`, `apk-search`, `apk-info-L-samba`, `apk-info-R-samba`, `apk-info-L-parts`, `tools`, `init-scripts` |
 | `conf.d-samba`, `init.d-samba`, `smb.conf.default`, `testparm-sv-default.txt` | TestCapture | `conf.d-samba`, `init.d-samba`, `smb.conf-default`, `testparm-sv-default` |
 | `paths.txt` | TestCapture | `testparm-paths-default`, `samba-dirs-before-start`, `databases`, `testparm-paths` |
-| `services.txt` | TestCapture | `init-depend`, `start-*`, `services-status`, `apk-add-avahi-tools`, `avahi-browse-samba-first`, `samba-restart`, `wsdd-after-samba-restart`, `daemon-list-smbd`, `rc-update-add`, `samba-stop` |
+| `services.txt` | TestCapture | `init-depend`, `start-*`, `services-status`, `apk-add-avahi-tools`, `avahi-browse-samba-first`, `samba-restart`, `wsdd-after-samba-restart`, `samba-restart-openrc-state`, `daemon-list-smbd`, `rc-update-add`, `samba-stop` |
 | `users.txt` | TestCapture | `adduser-u1`, `accounts-u1`, `pdbedit-a`, `pdbedit-L`, `pdbedit-L-w`, `login-u1*`, `smbpasswd-*`, `pdbedit-x`, `pdbedit-a-again`, `pdbedit-a-exists`, `odd-password` |
 | `pdbedit-L-v.txt` | TestCaptureACL | `acl-users` |
 | `shares.txt`, `share-names.txt`, `hiding.txt`, `protocol.txt` | TestCapture | `testparm-s1` and `s1-*`; `share-names-testparm`; `hide-*`, `sharesec-*`, `share-acl-narrows`; `protocol-*` |

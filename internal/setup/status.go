@@ -59,6 +59,8 @@ const (
 	lbuList     = "/etc/apk/protected_paths.d/lbu.list" // the list of lbu: +<path> includes, -<path> excludes
 	groupFile   = "/etc/group"
 	startedDir  = "/run/openrc/started"
+	startingDir = "/run/openrc/starting"
+	stoppingDir = "/run/openrc/stopping"
 	passdbFile  = "/var/lib/samba/private/passdb.tdb"
 	shareInfo   = "/var/lib/samba/share_info.tdb"
 	markerGroup = "edelweiss-samba"
@@ -117,6 +119,23 @@ func there(fs host.FS, p string) bool {
 
 // ServiceStarted reports whether OpenRC has started the service: its link is in /run/openrc/started.
 func ServiceStarted(fs host.FS, svc string) bool { return there(fs, startedDir+"/"+svc) }
+
+// ServiceStarting reports whether OpenRC is starting the service: its link is in /run/openrc/starting. That is what
+// rc-service samba restart leaves for wsdd when it returns: OpenRC starts the services the stop took along in the
+// background (internal/samba/testdata, samba-restart-openrc-state).
+func ServiceStarting(fs host.FS, svc string) bool { return there(fs, startingDir+"/"+svc) }
+
+// Transitioning lists the services of the setup (dbus, avahi-daemon, samba, wsdd) that OpenRC is starting or stopping, in
+// the order they start. A rc-service command on one of those fails with "is already starting".
+func Transitioning(fs host.FS) []string {
+	busy := []string{}
+	for _, svc := range []string{svcDbus, svcAvahi, svcSamba, svcWsdd} {
+		if ServiceStarting(fs, svc) || there(fs, stoppingDir+"/"+svc) {
+			busy = append(busy, svc)
+		}
+	}
+	return busy
+}
 
 // OurConf reports whether the smb.conf is one the extension wrote (samba.Render).
 func OurConf(text string) bool { return strings.HasPrefix(text, ConfHeader) }

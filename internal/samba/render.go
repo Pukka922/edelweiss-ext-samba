@@ -186,6 +186,9 @@ func writeGlobal(b *strings.Builder, s Settings, allow string, mdns bool) {
 	// the archive attribute lives in user.DOSATTRIB (store dos attributes), not in the execute bit of the owner: new files of
 	// a share that runs as its owner are 0644, not 0744
 	line("map archive = no")
+	// Windows opens a program for execution, and smbd grants that only with the execute right, which a share that runs as
+	// its owner takes from the x bit of the mode (0644: none); whoever may read a file can copy it and run it anyway
+	line("acl allow execute always = yes")
 	line("load printers = no")
 	line("printing = bsd")
 	line("printcap name = /dev/null")

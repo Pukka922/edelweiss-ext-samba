@@ -204,6 +204,40 @@ syslog:  * status: started
   576 root     {smbd-cleanupd} /usr/sbin/smbd -D
   577 root     /usr/sbin/nmbd -D
   608 wsdd     python3 /usr/bin/wsdd -w WORKGROUP
+=== samba-restart-openrc-state ===
+exit status: 0
+mkdir: can't create directory '/sys/fs/cgroup/openrc.wsdd': Read-only file system
+ * Stopping wsdd daemon ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Stopping smbd ... [ ok ]
+ * Stopping nmbd ... [ ok ]
+mkdir: can't create directory '/sys/fs/cgroup/openrc.samba': Read-only file system
+ * Starting smbd ... [ ok ]
+ * Starting nmbd ... [ ok ]
+--- /run/openrc/starting
+total 0
+lrwxrwxrwx    1 root     root            16 Nov 15 20:39 wsdd -> /etc/init.d/wsdd
+--- /run/openrc/stopping
+total 0
+--- /run/openrc/started
+total 0
+lrwxrwxrwx    1 root     root            24 Nov 15 20:39 avahi-daemon -> /etc/init.d/avahi-daemon
+lrwxrwxrwx    1 root     root            16 Nov 15 20:39 dbus -> /etc/init.d/dbus
+lrwxrwxrwx    1 root     root            17 Nov 15 20:39 samba -> /etc/init.d/samba
+lrwxrwxrwx    1 root     root            18 Nov 15 20:39 syslog -> /etc/init.d/syslog
+=== 3 s later
+--- /run/openrc/starting
+total 0
+--- /run/openrc/stopping
+total 0
+--- /run/openrc/started
+total 0
+lrwxrwxrwx    1 root     root            24 Nov 15 20:39 avahi-daemon -> /etc/init.d/avahi-daemon
+lrwxrwxrwx    1 root     root            16 Nov 15 20:39 dbus -> /etc/init.d/dbus
+lrwxrwxrwx    1 root     root            17 Nov 15 20:39 samba -> /etc/init.d/samba
+lrwxrwxrwx    1 root     root            18 Nov 15 20:39 syslog -> /etc/init.d/syslog
+lrwxrwxrwx    1 root     root            16 Nov 15 20:39 wsdd -> /etc/init.d/wsdd
+ * status: started
 === daemon-list-smbd ===
 exit status: 0
 Service 'acpid' needs non existent service 'dev'

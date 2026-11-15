@@ -31,7 +31,9 @@ at the end of Tests, which is for you to run.
   sign-in; the Samba password is their only one).
 - **An existing folder is shared as it is.** Samba works as the owner and the group of the shared folder (`force user`,
   `force group`), and the extension never changes the owner, the mode or the content of the files in it. New files are
-  0644 and new folders 0755 (`map archive = no`: the DOS attributes stay in an extended attribute, not in the mode). A
+  0644 and new folders 0755 (`map archive = no`: the DOS attributes stay in an extended attribute, not in the mode).
+  Windows can still run a program straight from a share (`acl allow execute always = yes`): smbd would otherwise
+  refuse to open a file without the x bit for execution, and whoever may read a file can copy it and run it anyway. A
   folder of root is shared as root (see Risky folders); a folder whose owner or group has no account on this host (a
   disk from another machine) can be shared after you confirm a service account `smb-<uid>` with exactly that ID, which
   has no login. Its group is the group of the folder's GID, or a new `smb-<gid>`; the IDs lie in 1000 to 65532, so new
@@ -139,7 +141,7 @@ The first time the page opens, "Samba einrichten" runs one job:
   setup, are kept as the next free `.edelweiss-bak.1`, `.edelweiss-bak.2`, … before they are replaced or removed. The
   files the setup only edits (`/etc/conf.d/samba`, `/etc/conf.d/wsdd`, `avahi-daemon.conf`) keep their first backup alone.
 - In diskless and data mode Samba's databases are kept (see Diskless and data mode), and `lbu commit` runs.
-- The services (`samba`, `avahi-daemon` with `dbus`, `wsdd`) go into the runlevel `default` and start.
+- The services (`samba`, `avahi-daemon` with `dbus`, `wsdd`) go into the runlevel `default` and start. A job first waits until OpenRC is starting or stopping none of them, and it stops `wsdd` itself before it restarts `samba` and starts it again after, so that it never meets the background start that OpenRC makes of `wsdd` ("wsdd is already starting").
 - A periodic script `/etc/periodic/daily/edelweiss-samba-recycle` (with `crond`) cleans the recycle bins.
 
 ## Users

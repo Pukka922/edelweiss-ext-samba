@@ -11,6 +11,7 @@
 //
 //	backup --file <database of Samba> [--remove]
 //	marker-group
+//	settle
 //
 // check-share is the root preexec of every share (with root preexec close = yes): smbd runs it before it connects a
 // client, and refuses the connection unless it ends with 0, so that nothing is written into the mount point of a disk
@@ -28,6 +29,9 @@
 // backup and marker-group are steps of the setup: backup keeps a database of the Samba that was there as
 // <file>.edelweiss-bak, and with --remove removes the file after the copy; marker-group makes the system group of the
 // accounts of the extension (accounts.Service.EnsureMarkerGroup).
+//
+// settle is the first of the rc-service steps of a plan (package setup): it waits until OpenRC is starting or stopping
+// none of dbus, avahi-daemon, samba and wsdd, up to 60 s, and then ends with 0 in any case (Tool.settle).
 //
 // A command ends with the status 0 when it did what it was told, StatusFailed (1) for a refusal or anything that went
 // wrong, and StatusUsage (2) for arguments it does not take; recycle-restore ends with recycle.ExitNoNoreplace (3) on a
@@ -51,7 +55,7 @@ import (
 )
 
 // subcommands are the names of the subcommands, for a message.
-const subcommands = "check-share, recycle-restore, recycle-empty, convert, apply-acl, backup, marker-group"
+const subcommands = "check-share, recycle-restore, recycle-empty, convert, apply-acl, backup, marker-group, settle"
 
 // The exit statuses of the commands (see the package documentation).
 const (
@@ -70,6 +74,8 @@ type Tool struct {
 	Busybox busybox.Runner
 	// Ifaces reads the network interfaces for check-share --client; nil is samba.SystemInterfaces.
 	Ifaces func() ([]samba.Iface, error)
+	// SettlePoll and SettleLimit are how often settle looks and when it gives up; zero is 200 ms and 60 s.
+	SettlePoll, SettleLimit time.Duration
 }
 
 // Main runs the subcommand in args (what follows --samba-tool) on the host and returns the exit status of the process.
@@ -102,6 +108,8 @@ func (t Tool) Run(ctx context.Context, args []string) int {
 		err = t.backup(ctx, rest)
 	case "marker-group":
 		err = t.markerGroup(ctx, rest)
+	case "settle":
+		err = t.settle(ctx, rest)
 	default:
 		return t.report("samba-tool", usagef("unknown subcommand %q (one of %s)", name, subcommands))
 	}

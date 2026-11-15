@@ -66,6 +66,9 @@ func shareACL(share, entries string) string {
 
 func tool(args ...string) string { return "exec " + self + " --samba-tool " + strings.Join(args, " ") }
 
+// settle is the wait for the services to settle that precedes the first rc-service step of a plan.
+var settle = tool("settle")
+
 const (
 	annaWrite = sidAnna + ":ALLOWED/0/CHANGE"
 	benRead   = sidBen + ":ALLOWED/0/READ"

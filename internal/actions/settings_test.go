@@ -29,7 +29,9 @@ func TestSettings(t *testing.T) {
 
 	// the local interfaces of the choice (not the public eth1) go to wsdd and avahi-daemon, which restart with samba
 	spec = f.plan(settings(samba.Settings{Name: "NAS", Workgroup: "HOME", Discovery: true, Interfaces: []string{"wg0", "eth1", "eth0", "eth0"}}))
-	newList := append(slices.Clone(head), writeWsdd, writeAvahi, "exec /sbin/rc-service avahi-daemon restart", "exec /sbin/rc-service samba restart")
+	restartAll := []string{settle, "exec /sbin/rc-service wsdd stop", "exec /sbin/rc-service samba restart", "exec /sbin/rc-service wsdd start"}
+	newList := append(slices.Clone(head), writeWsdd, writeAvahi, settle, "exec /sbin/rc-service avahi-daemon restart",
+		"exec /sbin/rc-service wsdd stop", "exec /sbin/rc-service samba restart", "exec /sbin/rc-service wsdd start")
 	same(t, "names and interfaces", describe(spec.Steps), newList)
 	want := samba.Settings{Name: "NAS", Workgroup: "HOME", Discovery: true, Interfaces: []string{"eth0", "eth1", "wg0"}}
 	if got := written(t, spec).Settings; !reflect.DeepEqual(got, want) {
@@ -48,11 +50,12 @@ func TestSettings(t *testing.T) {
 	}{
 		{"an interface more", samba.Settings{Discovery: true, Interfaces: []string{"eth0", "wg0"}}, newList},
 		{"a public interface more: wsdd and avahi stay as they are", samba.Settings{Discovery: true, Interfaces: []string{"eth0", "eth1"}},
-			append(slices.Clone(head), "exec /sbin/rc-service samba restart")},
-		{"the name alone", samba.Settings{Name: "NAS", Discovery: true, Interfaces: []string{"eth0"}}, append(slices.Clone(head), "exec /sbin/rc-service samba restart")},
-		{"the workgroup alone", samba.Settings{Workgroup: "HOME", Discovery: true, Interfaces: []string{"eth0"}}, append(slices.Clone(head), "exec /sbin/rc-service samba restart")},
+			append(slices.Clone(head), restartAll...)},
+		{"the name alone", samba.Settings{Name: "NAS", Discovery: true, Interfaces: []string{"eth0"}}, append(slices.Clone(head), restartAll...)},
+		{"the workgroup alone", samba.Settings{Workgroup: "HOME", Discovery: true, Interfaces: []string{"eth0"}}, append(slices.Clone(head), restartAll...)},
 		{"no local interface: as with the discovery off", samba.Settings{Discovery: true, Interfaces: []string{"eth1"}},
 			append(slices.Clone(head),
+				settle,
 				"exec /sbin/rc-service wsdd stop",
 				"exec /sbin/rc-service avahi-daemon stop",
 				"exec /sbin/rc-update del wsdd default",
@@ -65,6 +68,7 @@ func TestSettings(t *testing.T) {
 
 	spec = f.plan(settings(samba.Settings{Interfaces: []string{"eth0"}}))
 	same(t, "discovery off", describe(spec.Steps), append(head, reload,
+		settle,
 		"exec /sbin/rc-service wsdd stop",
 		"exec /sbin/rc-service avahi-daemon stop",
 		"exec /sbin/rc-update del wsdd default",
@@ -76,6 +80,7 @@ func TestSettings(t *testing.T) {
 	f.stop("avahi-daemon", "wsdd")
 	spec = f.plan(settings(samba.Settings{Discovery: true, Interfaces: []string{"eth0"}}))
 	same(t, "discovery on", describe(spec.Steps), append(head,
+		settle,
 		"exec /sbin/rc-service avahi-daemon start",
 		"exec /sbin/rc-service samba restart",
 		"exec /sbin/rc-service wsdd start",
@@ -92,7 +97,7 @@ func TestSettingsAvahiOfBefore(t *testing.T) {
 	f.env.Config.AvahiBefore = true
 	spec := f.plan(settings(samba.Settings{Interfaces: []string{"eth0"}}))
 	same(t, "discovery off", describe(spec.Steps), append(slices.Clone(head),
-		"exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default", "exec /sbin/rc-service samba restart"))
+		settle, "exec /sbin/rc-service wsdd stop", "exec /sbin/rc-update del wsdd default", "exec /sbin/rc-service samba restart"))
 	if !written(t, spec).AvahiBefore {
 		t.Error("the settings lost AvahiBefore")
 	}
