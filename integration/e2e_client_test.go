@@ -431,6 +431,27 @@ func (e *e2e) smbAt(addr, share, user, pw, cmds string, args ...string) (bool, s
 	return ok, fmt.Sprintf("--- //%s/%s: %s as %s: %s\n%s", addr, share, cmds, user, yesNo(ok), withStatus(out, status))
 }
 
+// anonymousRefused lists the shares without a login (smbclient -N, the session Windows falls back to when it lists
+// \\server); restrict anonymous = 2 has to refuse that with the status text want. It returns the log.
+func (e *e2e) anonymousRefused(want string) string {
+	e.t.Helper()
+	cmd := run.Cmd{Path: e.tool("smbclient"), Args: []string{"-N", "-L", "//127.0.0.1", "-g"}, Timeout: 2 * time.Minute}
+	out, err := run.Exec{Env: run.Env}.Run(ctx, cmd)
+	status := 0
+	if err != nil {
+		var re *run.Error
+		if !errors.As(err, &re) || re.Status < 0 {
+			e.t.Fatalf("smbclient did not run: %v", err)
+		}
+		status = re.Status
+	}
+	e.statuses = append(e.statuses, fmt.Sprintf("%3d  %s", status, cmd))
+	if status == 0 || !strings.Contains(out, want) {
+		e.t.Errorf("anonymous smbclient -L: exit status %d, want a refusal with %s\n%s", status, want, out)
+	}
+	return "--- smbclient -N -L (anonymous)\n" + withStatus(out, status)
+}
+
 // can has the user do the commands on the share at 127.0.0.1, which has to work; it returns the log.
 func (e *e2e) can(share, user, pw, cmds string) string {
 	e.t.Helper()

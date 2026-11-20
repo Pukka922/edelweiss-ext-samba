@@ -102,8 +102,9 @@ at the end of Tests, which is for you to run.
   sidebar of the Finder. The Mac adjustments (`vfs_fruit` with `streams_xattr`, so no `._` files) are on for shares on disks with extended attributes; the conversion of special characters in file names (`catia`) is on for every share.
 
 Protocol: SMB3 only (`server min protocol = SMB3`). With the switch "allow older devices" it is SMB2 (`SMB2_02`). SMB1
-never. There is no guest access (a device that cannot sign in gets a Samba user of its own with "read"), no WebDAV,
-NFS, FTP or DLNA, no Time Machine, no `[homes]`, no quotas and no Active Directory.
+never. There is no guest access (a device that cannot sign in gets a Samba user of its own with "read"), and anonymous
+sessions are refused too (`restrict anonymous = 2`), so Windows asks for a login also when it opens `\\server` itself.
+There is no WebDAV, NFS, FTP or DLNA, no Time Machine, no `[homes]`, no quotas and no Active Directory.
 
 ### The page
 

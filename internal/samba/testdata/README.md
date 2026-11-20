@@ -172,6 +172,7 @@ the same results. Without such a method it prints "unknown" and fails. Item 6 be
 | `share-names.txt` | `testparm -s` of a configuration with share names that the name rule has to decide on |
 | `hiding.txt` | `smbclient -L` as each user with access based share enum, without and with share ACLs, and `sharesec` |
 | `protocol.txt` | `smbclient -m NT1`, `SMB2`, `SMB3` against `server min protocol = SMB3` and `SMB2_02` |
+| `anonymous.txt` | `smbclient -N -L //127.0.0.1 -g` (anonymous) with its exit status, the same at `-d 3` trimmed to the lines about the login and the tree connect, and `-L` as a Samba user, with the default config and with `restrict anonymous = 2` |
 | `missing-disk.txt` | `root preexec` with `root preexec close = yes`: the refusal, the text a preexec writes to stderr, and the arguments `%S` and `%U` give a preexec |
 | `recycle.txt` | `vfs_recycle`: what a deletion leaves with its times, versions, a reader's deletion, a deletion inside `#recycle`, `recycle:touch_mtime`, what moves the times of a file in `#recycle` afterwards (`recycle-times`, in nanoseconds), and the three ways of hiding `#recycle` |
 | `mac.txt` | `catia fruit streams_xattr` on the overlay: a stream, a resource fork, streams of 3, 8 and 70 KiB, and the attributes on disk |
@@ -239,6 +240,13 @@ of the log, each below its `=== <name> ===` line; a block that ran a command thr
 protocol between SMB2_02 and SMB2) failed: NT_STATUS_NOT_SUPPORTED`, `-m SMB3` works. With `SMB2_02` both work. `-m NT1`
 fails on the client side (`Max protocol NT1 is less than min protocol SMB2_02`). The dialect of the sessions is
 `SMB3_11`.
+
+### Anonymous sessions
+
+With the default config (`restrict anonymous = 0`), `smbclient -N -L` logs in anonymously and lists `s1` and `IPC$`
+(exit status 0). With `restrict anonymous = 2` the anonymous login still succeeds (`Anonymous login successful`), but
+the tree connect to `IPC$` is refused: `tree connect failed: NT_STATUS_ACCESS_DENIED`, exit status 1. A Samba user's
+`-L` works with both (`anonymous.txt`).
 
 ### Missing disk
 
@@ -452,7 +460,7 @@ lines:
 | `services.txt` | TestCapture | `init-depend`, `start-*`, `services-status`, `apk-add-avahi-tools`, `avahi-browse-samba-first`, `samba-restart`, `wsdd-after-samba-restart`, `samba-restart-openrc-state`, `daemon-list-smbd`, `rc-update-add`, `samba-stop` |
 | `users.txt` | TestCapture | `adduser-u1`, `accounts-u1`, `pdbedit-a`, `pdbedit-L`, `pdbedit-L-w`, `login-u1*`, `smbpasswd-*`, `pdbedit-x`, `pdbedit-a-again`, `pdbedit-a-exists`, `odd-password` |
 | `pdbedit-L-v.txt` | TestCaptureACL | `acl-users` |
-| `shares.txt`, `share-names.txt`, `hiding.txt`, `protocol.txt` | TestCapture | `testparm-s1` and `s1-*`; `share-names-testparm`; `hide-*`, `sharesec-*`, `share-acl-narrows`; `protocol-*` |
+| `shares.txt`, `share-names.txt`, `hiding.txt`, `protocol.txt`, `anonymous.txt` | TestCapture | `testparm-s1` and `s1-*`; `share-names-testparm`; `hide-*`, `sharesec-*`, `share-acl-narrows`; `protocol-*`; `anonymous-*` |
 | `missing-disk.txt`, `recycle.txt`, `mac.txt` | TestCapture | `missing-disk-*`, `preexec-args`; `recycle-*`; `mac-*` |
 | `smbstatus-*.json`, `smbstatus.txt` | TestCapture | `smbstatus-json-none`, `-idle`, `-open`; `smbstatus-help`, `smbstatus-json-none-status`, `smbstatus-text`, `smbstatus-b`, `smbstatus-L-json`, `smbstatus-clients` |
 | `reload.txt`, `interfaces.txt`, `proc-net-*` | TestCapture | `reload*`; `sys-class-net`, `ip-addr`, `bind-*`, `hosts-allow-*`; `proc-net-if_inet6`, `proc-net-fib_trie` |

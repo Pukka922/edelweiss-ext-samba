@@ -1,0 +1,29 @@
+=== anonymous-default-list ===
+exit status: 0
+Anonymous login successful
+Disk|s1|
+IPC|IPC$|IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== anonymous-default-debug ===
+exit status: 0
+gensec_gse_client_start: Not using kerberos to cifs/127.0.0.1 as WORKGROUP\root: NT_STATUS_INVALID_PARAMETER
+Anonymous login successful
+=== anonymous-default-user-list ===
+exit status: 0
+Disk|s1|
+IPC|IPC$|IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available
+=== anonymous-restrict-anonymous-2-list ===
+exit status: 1
+Anonymous login successful
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== anonymous-restrict-anonymous-2-debug ===
+exit status: 1
+gensec_gse_client_start: Not using kerberos to cifs/127.0.0.1 as WORKGROUP\root: NT_STATUS_INVALID_PARAMETER
+Anonymous login successful
+tree connect failed: NT_STATUS_ACCESS_DENIED
+=== anonymous-restrict-anonymous-2-user-list ===
+exit status: 0
+Disk|s1|
+IPC|IPC$|IPC Service (Samba 4.23.8)
+SMB1 disabled -- no workgroup available

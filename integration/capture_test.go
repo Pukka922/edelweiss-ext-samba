@@ -52,6 +52,7 @@ func TestCapture(t *testing.T) {
 	c.captureShareNames()
 	c.captureHiding()
 	c.captureProtocol()
+	c.captureAnonymous()
 	c.captureMissingDisk()
 	c.captureRecycle()
 	c.captureRecycleHiding()
@@ -279,6 +280,32 @@ func (c *capture) captureProtocol() {
 		for _, m := range []string{"NT1", "SMB2", "SMB3"} {
 			block("protocol-"+min+"-client-"+m, c.smb("s1", "writer", pwWriter, "ls", "-m", m))
 		}
+	}
+}
+
+// captureAnonymous lists the shares without a login (the session Windows falls back to when it lists \\server) and as
+// a Samba user, with the default global section and with restrict anonymous = 2. The -d 3 run is trimmed to the lines
+// that say whether the session setup or the IPC$ tree connect is refused, and with which status.
+func (c *capture) captureAnonymous() {
+	smbclient := c.tool("smbclient")
+	for _, r := range []string{"default", "restrict-anonymous-2"} {
+		if r == "default" {
+			c.setConf(globalConf(), s1)
+		} else {
+			c.setConf(globalConf("restrict anonymous = 2"), s1)
+		}
+		block("anonymous-"+r+"-list", c.result(smbclient, "-N", "-L", "//127.0.0.1", "-g"))
+		out, status := c.run(smbclient, "-N", "-L", "//127.0.0.1", "-g", "-d", "3")
+		var keep []string
+		for _, l := range strings.Split(out, "\n") {
+			low := strings.ToLower(l)
+			if strings.Contains(l, "NT_STATUS") || strings.Contains(low, "session setup") ||
+				strings.Contains(low, "tree connect") || strings.Contains(low, "anonymous") {
+				keep = append(keep, l)
+			}
+		}
+		block("anonymous-"+r+"-debug", withStatus(strings.Join(keep, "\n")+"\n", status))
+		block("anonymous-"+r+"-user-list", c.list("reader", pwReader, "-g"))
 	}
 }
 

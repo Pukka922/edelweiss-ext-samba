@@ -113,6 +113,9 @@ func (e *e2e) fotosAccess() {
 		e.t.Error("ben wrote in Fotos")
 	}
 	text += e.cannot("Fotos", "carl", pwCarl, "ls", "tree connect failed: NT_STATUS_ACCESS_DENIED")
+	// Windows lists \\server on an anonymous session when its own login is refused; Samba has to refuse that, so that
+	// Windows asks for a login.
+	text += e.anonymousRefused("tree connect failed: NT_STATUS_ACCESS_DENIED")
 	names, out := e.listed("carl", pwCarl)
 	text += out
 	if slices.Contains(names, "Fotos") {

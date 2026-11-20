@@ -183,6 +183,9 @@ func writeGlobal(b *strings.Builder, s Settings, allow string, mdns bool) {
 	line("hosts allow = %s", allow)
 	line("access based share enum = yes")
 	line("map to guest = never")
+	// Windows falls back to an anonymous session to list the shares of \\server; refusing it makes Windows ask for a
+	// login, as a Windows server does. There are no guest shares.
+	line("restrict anonymous = 2")
 	// the archive attribute lives in user.DOSATTRIB (store dos attributes), not in the execute bit of the owner: new files of
 	// a share that runs as its owner are 0644, not 0744
 	line("map archive = no")
